@@ -487,6 +487,23 @@ class GHPR:
             except Exception as e:
                 print(f"Warning: Failed to add 'staged' label to PR #{pr_number}: {e}")
 
+            # Show review information
+            try:
+                pr_info = GHHelper.pr_view(pr_number)
+                reviews = pr_info.get('reviews', [])
+                approvers = [r['author']['login'] for r in reviews if r['state'] == 'APPROVED']
+                if approvers:
+                    # Remove duplicates while preserving order
+                    seen = set()
+                    unique_approvers = []
+                    for approver in approvers:
+                        if approver not in seen:
+                            seen.add(approver)
+                            unique_approvers.append(approver)
+                    print(f"\nApproved by: {', '.join(unique_approvers)}")
+            except Exception as e:
+                print(f"Warning: Could not fetch review information: {e}", file=sys.stderr)
+
             print(f"\nPR #{pr_number} staged successfully!")
             print(f"Review the commits and when ready, run: ghpr push")
             return
@@ -581,6 +598,23 @@ class GHPR:
             GHHelper.pr_edit(pr_number, add_label='staged')
         except Exception as e:
             print(f"Warning: Failed to add 'staged' label to PR #{pr_number}: {e}")
+
+        # Show review information
+        try:
+            pr_info = GHHelper.pr_view(pr_number)
+            reviews = pr_info.get('reviews', [])
+            approvers = [r['author']['login'] for r in reviews if r['state'] == 'APPROVED']
+            if approvers:
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_approvers = []
+                for approver in approvers:
+                    if approver not in seen:
+                        seen.add(approver)
+                        unique_approvers.append(approver)
+                print(f"\nApproved by: {', '.join(unique_approvers)}")
+        except Exception as e:
+            print(f"Warning: Could not fetch review information: {e}", file=sys.stderr)
 
         print(f"\nPR #{pr_number} staged successfully!")
         print(f"Review the commits and when ready, run: ghpr push")
