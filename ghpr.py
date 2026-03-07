@@ -10,6 +10,7 @@ SPDX-License-Identifier: BSD-2-Clause
 """
 
 import argparse
+import getpass
 import json
 import subprocess
 import sys
@@ -385,12 +386,16 @@ class GHPR:
         GitHelper.pull(rebase=True)
         GitHelper.rebase(self.base, interactive=True)
 
-    def stage(self, pr_number: int, reviewer: str = 'imp',
+    def stage(self, pr_number: int, reviewer: Optional[str] = None,
               repo: str = 'freebsd-src', editor: Optional[str] = None,
               do_continue: bool = False, force: bool = False) -> None:
         """Stage a PR for landing (ghpr-stage.sh)"""
         if not self.is_initialized():
             self.die(f"Branch {self.staging} has not been initialized. Run 'ghpr init' first.")
+
+        # Default reviewer to current user if not specified
+        if reviewer is None:
+            reviewer = getpass.getuser()
 
         base = self.get_base()
         prs = self.get_prs()
@@ -862,8 +867,8 @@ Examples:
     stage_parser.add_argument('pr', type=int, help='PR number to stage')
     stage_parser.add_argument(
         '--reviewer',
-        default='imp',
-        help='Reviewer name for Reviewed-by trailer (default: imp)'
+        default=getpass.getuser(),
+        help=f'Reviewer name for Reviewed-by trailer (default: {getpass.getuser()})'
     )
     stage_parser.add_argument(
         '--repo',
