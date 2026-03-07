@@ -18,11 +18,12 @@ Combine them: `ghpr.py -v -n <command>` to see exactly what would be done.
 | Command | What It Does |
 |---------|-------------|
 | `ghpr.py init` | Create staging branch from main |
-| `ghpr.py stage <PR>` | Download and apply PR to staging |
+| `ghpr.py stage <PR>` | Download and apply PR to staging, add 'staged' label |
 | `ghpr.py stage --continue <PR>` | Resume after conflict resolution |
-| `ghpr.py unstage <PR>` | Remove a PR from staging |
+| `ghpr.py stage --force <PR>` | Force staging even if already staged |
+| `ghpr.py unstage <PR>` | Remove a PR from staging, remove 'staged' label |
 | `ghpr.py status` | Show what's staged |
-| `ghpr.py push` | Push to FreeBSD, close GitHub PRs |
+| `ghpr.py push` | Push to FreeBSD, close PRs, add 'merged' label |
 
 ## Quick Start
 
@@ -69,6 +70,10 @@ ghpr.py push
 3. **`--continue` flag** - Better conflict resolution
 4. **Unified interface** - One tool, not three scripts
 5. **Better error messages** - Clear instructions on failure
+6. **GitHub label tracking** - Automatically manages 'staged' and 'merged' labels
+7. **Duplicate prevention** - Won't stage already-staged PRs (use --force to override)
+8. **Review display** - Shows PR approvers after successful staging
+9. **Current user default** - Uses your username as default reviewer, not hardcoded
 
 ## Files Created
 
@@ -93,18 +98,24 @@ CLAUDE.md                  # Updated with ghpr.py documentation
 **Architecture:**
 - `GitConfig` class - Git config operations
 - `GitHelper` class - Git command wrappers
-- `GHHelper` class - GitHub CLI wrappers
+- `GHHelper` class - GitHub CLI wrappers (pr_checkout, pr_edit, pr_view, pr_close)
 - `GHPR` class - Main orchestration
 
 **State tracking:**
 - Uses git config: `branch.staging.opabinia.*`
 - PR list: `branch.staging.opabinia.prs`
 - Per-PR metadata: `branch.staging.opabinia.<PR>.*`
+- GitHub labels: 'staged' (during landing), 'merged' (after push)
 
 **Commit identification:**
 - Uses `Pull-Request:` trailer in commit messages
 - Added automatically during stage
 - Used by unstage to identify which commits to remove
+
+**PR information:**
+- Fetches labels, assignees, and reviews from GitHub
+- Prevents duplicate staging
+- Shows approvers after successful stage
 
 ## Testing Notes
 
@@ -179,11 +190,12 @@ CLAUDE.md                  # Updated with ghpr.py documentation
 
 ## Code Statistics
 
-- ~550 lines of Python
+- ~930 lines of Python
 - 4 helper classes
 - 6 commands
 - Type hints throughout
 - Comprehensive error handling
+- GitHub API integration
 
 ## Dependencies
 

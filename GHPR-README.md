@@ -93,17 +93,21 @@ ghpr.py stage 1236
 ```
 
 For each PR, this will:
+- Check if PR is already staged (prevents duplicate staging)
 - Check out the PR into a temporary branch
 - Rebase it onto the staging branch
 - Add commit trailers (Reviewed-by, Pull-Request URL)
 - Run style checker if available
 - Update staging branch
+- Add 'staged' label to the GitHub PR
+- Display who approved the PR (if any)
 
 **Options:**
-- `--reviewer NAME` - Reviewer for Reviewed-by trailer (default: imp)
+- `--reviewer NAME` - Reviewer for Reviewed-by trailer (default: current user)
 - `--repo NAME` - GitHub repo name (default: freebsd-src)
 - `--editor CMD` - Editor for commit message fixups
 - `--continue` - Continue an interrupted rebase after resolving conflicts
+- `-f, --force` - Force staging even if PR is already staged
 
 **Handling Conflicts:**
 
@@ -143,6 +147,7 @@ ghpr.py unstage 1234
 This will:
 - Identify commits belonging to the PR (by Pull-Request trailer)
 - Rebuild the staging branch without those commits
+- Remove 'staged' label from the GitHub PR
 - Clean up PR branch and config
 - Preserve other staged PRs
 
@@ -158,7 +163,7 @@ This will:
 - Push all staged commits to FreeBSD's main branch
 - Retry with rebase if push fails due to new commits
 - Close GitHub PRs with merge message
-- Add "merged" label to PRs
+- Remove 'staged' label and add 'merged' label to PRs
 - Clean up temporary branches and config
 
 ## Workflow Example
@@ -213,6 +218,20 @@ branch.staging.opabinia.prs = 1234 1235
 branch.staging.opabinia.1234.upstream = origin
 branch.staging.opabinia.1234.upstream-branch = patch-1
 ```
+
+## GitHub Label Tracking
+
+The tool automatically manages GitHub labels to track PR lifecycle:
+
+- **'staged' label** - Added when a PR is staged for landing, removed when unstaged or merged
+- **'merged' label** - Added when a PR is successfully pushed to FreeBSD main
+
+When attempting to stage a PR that's already staged, the tool will:
+- Report that the PR is already staged
+- Display any assigned users from GitHub
+- Require `--force` flag to override
+
+If a PR has a stale 'staged' label but isn't actually in the local staging branch, the tool will warn but continue staging.
 
 ## Advanced Options
 
@@ -289,6 +308,18 @@ If unstage fails while rebuilding the staging branch:
 1. The operation will be rolled back
 2. You can manually rebase to remove the PR
 3. Or use `git rebase -i main` to interactively remove commits
+
+### "PR is already staged"
+
+If you try to stage a PR that's already in the staging branch:
+- The tool will show you who the PR is assigned to (if anyone)
+- Use `ghpr.py unstage <PR>` to remove it first
+- Or use `ghpr.py stage --force <PR>` to override (not recommended)
+
+If the PR has a 'staged' label but isn't actually staged:
+- The tool will warn about the stale label
+- Staging will continue normally
+- The label will be refreshed
 
 ## Development Notes
 
