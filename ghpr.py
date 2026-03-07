@@ -10,6 +10,7 @@ SPDX-License-Identifier: BSD-2-Clause
 """
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -287,6 +288,16 @@ class GHHelper:
             return
         subprocess.run(cmd, check=True)
 
+    @staticmethod
+    def pr_view(pr_number: int) -> dict:
+        """Get PR information including labels, assignees, and reviews"""
+        cmd = ['gh', 'pr', 'view', str(pr_number), '--json', 'labels,assignees,reviews']
+        GHHelper._print_cmd(cmd)
+        if GHHelper.dry_run:
+            return {'labels': [], 'assignees': [], 'reviews': []}
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+
 
 class GHPR:
     """Main class for GitHub PR landing operations"""
@@ -376,7 +387,7 @@ class GHPR:
 
     def stage(self, pr_number: int, reviewer: str = 'imp',
               repo: str = 'freebsd-src', editor: Optional[str] = None,
-              do_continue: bool = False) -> None:
+              do_continue: bool = False, force: bool = False) -> None:
         """Stage a PR for landing (ghpr-stage.sh)"""
         if not self.is_initialized():
             self.die(f"Branch {self.staging} has not been initialized. Run 'ghpr init' first.")
@@ -384,6 +395,39 @@ class GHPR:
         base = self.get_base()
         prs = self.get_prs()
         pr_branch = f'PR-{pr_number}'
+
+        # Check if PR is already staged (unless --force or --continue)
+        if not do_continue and not force:
+            pr_str = str(pr_number)
+
+            # First check if PR is already in our staging branch
+            if pr_str in prs:
+                print(f"Error: PR #{pr_number} is already staged", file=sys.stderr)
+
+                try:
+                    pr_info = GHHelper.pr_view(pr_number)
+                    # Show assignees if any
+                    assignees = pr_info.get('assignees', [])
+                    if assignees:
+                        assignee_logins = [a['login'] for a in assignees]
+                        print(f"Assigned to: {', '.join(assignee_logins)}", file=sys.stderr)
+                except subprocess.CalledProcessError:
+                    pass  # Continue even if we can't fetch PR info
+
+                print("\nUse --force to stage anyway", file=sys.stderr)
+                sys.exit(1)
+
+            # Check if PR has 'staged' label but isn't actually staged
+            try:
+                pr_info = GHHelper.pr_view(pr_number)
+                labels = [label['name'] for label in pr_info.get('labels', [])]
+
+                if 'staged' in labels:
+                    print(f"Warning: PR #{pr_number} has 'staged' label but is not staged locally", file=sys.stderr)
+                    print("The label may be stale. Continuing with staging...", file=sys.stderr)
+            except subprocess.CalledProcessError as e:
+                print(f"Warning: Could not check PR status: {e}", file=sys.stderr)
+                print("Continuing with staging...", file=sys.stderr)
 
         # Handle --continue for interrupted rebase
         if do_continue:
@@ -802,6 +846,11 @@ Examples:
         dest='do_continue',
         help='Continue an interrupted rebase'
     )
+    stage_parser.add_argument(
+        '-f', '--force',
+        action='store_true',
+        help='Force staging even if PR is already marked as staged'
+    )
 
     # Push command
     push_parser = subparsers.add_parser('push', help='Push staged PRs to FreeBSD')
@@ -830,7 +879,7 @@ Examples:
         ghpr.init(force=args.force)
     elif args.command == 'stage':
         ghpr.stage(args.pr, reviewer=args.reviewer, repo=args.repo,
-                   editor=args.editor, do_continue=args.do_continue)
+                   editor=args.editor, do_continue=args.do_continue, force=args.force)
     elif args.command == 'push':
         ghpr.push(do_pr_branch_push=args.push_pr_branches)
     elif args.command == 'unstage':
