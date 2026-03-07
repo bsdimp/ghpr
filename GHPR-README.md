@@ -1,0 +1,323 @@
+# ghpr.py - GitHub Pull Request Landing Tool
+
+Python-based tool to land GitHub pull requests into FreeBSD repositories.
+
+## Overview
+
+`ghpr.py` combines the functionality of the three shell scripts:
+- `ghpr-init.sh` - Initialize staging branch
+- `ghpr-stage.sh` - Download and apply PR to the tree
+- `ghpr-push.sh` - Push changes to FreeBSD and update GitHub
+
+## Requirements
+
+- Python 3.6+
+- `git` command-line tool
+- `gh` (GitHub CLI) - Install with `pkg install gh` or from https://cli.github.com
+- GitHub authentication configured (`gh auth login`)
+- FreeBSD git repository with `freebsd` remote
+
+## Installation
+
+```bash
+# Make executable
+chmod +x ghpr.py
+
+# Optional: symlink to path
+ln -s $(pwd)/ghpr.py /usr/local/bin/ghpr
+```
+
+## Global Options
+
+### Verbose Mode
+
+Print all commands before executing them:
+
+```bash
+ghpr.py -v <command>
+# or
+ghpr.py --verbose <command>
+```
+
+This is useful for debugging and understanding what operations are being performed.
+
+### Dry-Run Mode
+
+Show what would be done without actually doing it:
+
+```bash
+ghpr.py -n <command>
+# or
+ghpr.py --dry-run <command>
+```
+
+This is useful for previewing operations before committing to them. **Dry-run mode automatically prints all commands** that would be executed, so you don't need to also specify `--verbose`:
+
+```bash
+ghpr.py -n init
+# Shows:
+# DRY RUN MODE - No changes will be made
+# + git config --get branch.staging.opabinia
+# + git rev-parse --verify staging
+# + git checkout -b staging main
+# + git config --type bool set branch.staging.opabinia true
+# ...
+```
+
+**Important:** In dry-run mode, **no commands are actually executed** - not even reads. This means the output shows what the code *would* do based on default assumptions, not based on your current repository state. For example, `ghpr -n init` will always show branch creation steps, even if the branch already exists.
+
+## Usage
+
+### 1. Initialize Staging Branch
+
+Create a staging branch for landing PRs:
+
+```bash
+ghpr.py init
+```
+
+This creates a branch named `staging` from `main` and marks it for PR landing operations.
+
+### 2. Stage Pull Requests
+
+Add one or more PRs to the staging branch:
+
+```bash
+# Stage a single PR
+ghpr.py stage 1234
+
+# Stage multiple PRs sequentially
+ghpr.py stage 1234
+ghpr.py stage 1235
+ghpr.py stage 1236
+```
+
+For each PR, this will:
+- Check out the PR into a temporary branch
+- Rebase it onto the staging branch
+- Add commit trailers (Reviewed-by, Pull-Request URL)
+- Run style checker if available
+- Update staging branch
+
+**Options:**
+- `--reviewer NAME` - Reviewer for Reviewed-by trailer (default: imp)
+- `--repo NAME` - GitHub repo name (default: freebsd-src)
+- `--editor CMD` - Editor for commit message fixups
+- `--continue` - Continue an interrupted rebase after resolving conflicts
+
+**Handling Conflicts:**
+
+If the rebase encounters conflicts:
+
+```bash
+# 1. The rebase will stop and show you which files have conflicts
+ghpr.py stage 1234
+# ... conflicts occur ...
+
+# 2. Resolve conflicts in your editor
+vim conflicted-file.c
+
+# 3. Stage the resolved files
+git add conflicted-file.c
+
+# 4. Continue the staging process
+ghpr.py stage --continue 1234
+```
+
+### 3. Check Status
+
+View what's staged:
+
+```bash
+ghpr.py status
+```
+
+### 4. Unstage a PR (Optional)
+
+If you need to remove a PR from staging:
+
+```bash
+ghpr.py unstage 1234
+```
+
+This will:
+- Identify commits belonging to the PR (by Pull-Request trailer)
+- Rebuild the staging branch without those commits
+- Clean up PR branch and config
+- Preserve other staged PRs
+
+### 5. Push to FreeBSD
+
+After reviewing all staged commits, push to FreeBSD and close the PRs:
+
+```bash
+ghpr.py push
+```
+
+This will:
+- Push all staged commits to FreeBSD's main branch
+- Retry with rebase if push fails due to new commits
+- Close GitHub PRs with merge message
+- Add "merged" label to PRs
+- Clean up temporary branches and config
+
+## Workflow Example
+
+```bash
+# One-time setup
+ghpr.py init
+
+# Stage PRs
+ghpr.py stage 1234
+
+# Stage another PR (with conflicts)
+ghpr.py stage 1235
+# ... rebase stops with conflicts ...
+
+# Resolve conflicts
+vim file.c
+git add file.c
+
+# Continue staging
+ghpr.py stage --continue 1235
+
+# Stage one more
+ghpr.py stage 1236
+
+# Review the commits
+git log main..staging
+
+# Oops, don't want 1235 after all
+ghpr.py unstage 1235
+
+# Check what's left
+ghpr.py status
+
+# Make any final edits
+git rebase -i main
+
+# Push everything
+ghpr.py push
+
+# Done! Staging branch is cleaned up automatically
+```
+
+## Configuration
+
+The tool uses git config to track state:
+
+```
+branch.staging.opabinia = true
+branch.staging.opabinia.base = main
+branch.staging.opabinia.prs = 1234 1235
+branch.staging.opabinia.1234.upstream = origin
+branch.staging.opabinia.1234.upstream-branch = patch-1
+```
+
+## Advanced Options
+
+### Custom Staging Branch
+
+Use a different branch name:
+
+```bash
+ghpr.py --staging-branch my-landing init
+ghpr.py --staging-branch my-landing stage 1234
+ghpr.py --staging-branch my-landing push
+```
+
+### Push to PR Branches (Experimental)
+
+Also push to the original PR branches:
+
+```bash
+ghpr.py push --push-pr-branches
+```
+
+## Differences from Shell Scripts
+
+### Improvements
+
+1. **Unified interface** - Single command with subcommands instead of three scripts
+2. **Better error handling** - Python exceptions with clear messages
+3. **Status command** - See what's staged before pushing
+4. **Type safety** - Catches errors earlier with type hints
+5. **Extensibility** - Easy to add new features in Python
+6. **Help text** - Built-in `--help` for all commands
+
+### Behavioral Changes
+
+- Interactive rebase during stage uses `-i` flag (matches original)
+- Style checker errors are warnings, not failures
+- Better handling of missing branches and config
+
+## Troubleshooting
+
+### "Branch staging has not been initialized"
+
+Run `ghpr.py init` first.
+
+### "Failed to checkout PR"
+
+Make sure:
+- `gh` CLI is installed and authenticated
+- You have access to the repository
+- PR number is correct
+
+### Rebase conflicts during stage
+
+If rebase fails during `stage`:
+1. Resolve conflicts manually: `vim <conflicted-files>`
+2. Stage resolved files: `git add <files>`
+3. Continue: `ghpr.py stage --continue <PR>`
+
+Alternatively, to abort:
+```bash
+git rebase --abort
+```
+
+### Rebase conflicts during push
+
+If rebase fails during `push`:
+1. Resolve conflicts manually
+2. `git rebase --continue`
+3. Re-run `ghpr.py push`
+
+### Cherry-pick conflicts during unstage
+
+If unstage fails while rebuilding the staging branch:
+1. The operation will be rolled back
+2. You can manually rebase to remove the PR
+3. Or use `git rebase -i main` to interactively remove commits
+
+## Development Notes
+
+### Future Enhancements
+
+From the original scripts' TODO comments:
+
+- [ ] Scrape PR for GitHub approvals and translate to FreeBSD names
+- [ ] Auto-bump `.Dd` dates in man pages
+- [ ] Run igor (man page linter) before/after
+- [ ] Support staging multiple PRs at once with single command
+- [ ] Dry-run mode to preview operations
+- [ ] Better conflict resolution hints
+
+### Editor Hook
+
+The `--editor` option or `$HOME/bin/git-fixup-editor` can be used to automatically edit commit messages during rebase. This is useful for:
+- Fixing commit message formatting
+- Adding missing metadata
+- Standardizing commit titles
+
+## Migration from Shell Scripts
+
+The Python version is designed as a drop-in replacement:
+
+| Old Command | New Command |
+|-------------|-------------|
+| `ghpr-init.sh` | `ghpr.py init` |
+| `ghpr-stage.sh 1234` | `ghpr.py stage 1234` |
+| `ghpr-push.sh` | `ghpr.py push` |
+
+The shell scripts will remain available during the transition period.
