@@ -342,8 +342,64 @@ class GHPR:
         """Get list of PRs in staging branch"""
         return GitConfig.get_all(f'{self.config_prefix}.prs')
 
+    def _check_freebsd_remote(self) -> None:
+        """Verify that 'freebsd' remote exists and points to the correct URL"""
+        expected_url = 'ssh://git@gitrepo.freebsd.org/src.git'
+
+        # Check if remote exists
+        try:
+            result = GitHelper.run(['remote', 'get-url', 'freebsd'], capture=True, check=False)
+            if result.returncode != 0:
+                self.die(
+                    f"No 'freebsd' remote found.\n"
+                    f"Please add it with:\n"
+                    f"  git remote add freebsd {expected_url}"
+                )
+            fetch_url = result.stdout.strip()
+        except Exception:
+            self.die(
+                f"Failed to check 'freebsd' remote.\n"
+                f"Please ensure it exists and points to:\n"
+                f"  {expected_url}"
+            )
+
+        # Check fetch URL
+        if fetch_url != expected_url:
+            self.die(
+                f"'freebsd' remote fetch URL is incorrect.\n"
+                f"Expected: {expected_url}\n"
+                f"Got:      {fetch_url}\n"
+                f"Please update it with:\n"
+                f"  git remote set-url freebsd {expected_url}"
+            )
+
+        # Check push URL
+        try:
+            result = GitHelper.run(['remote', 'get-url', '--push', 'freebsd'], capture=True, check=False)
+            if result.returncode != 0:
+                push_url = fetch_url  # If no separate push URL, it uses fetch URL
+            else:
+                push_url = result.stdout.strip()
+        except Exception:
+            push_url = fetch_url
+
+        if push_url != expected_url:
+            self.die(
+                f"'freebsd' remote push URL is incorrect.\n"
+                f"Expected: {expected_url}\n"
+                f"Got:      {push_url}\n"
+                f"Please update it with:\n"
+                f"  git remote set-url --push freebsd {expected_url}"
+            )
+
+        if self.verbose:
+            print(f"✓ 'freebsd' remote is correctly configured", file=sys.stderr)
+
     def init(self, force: bool = False) -> None:
         """Initialize staging branch for PR landing (ghpr-init.sh)"""
+        # Check that 'freebsd' remote is properly configured
+        self._check_freebsd_remote()
+
         if force:
             print(f"Force re-initialization requested")
             if self.is_initialized() or GitHelper.branch_exists(self.staging):
