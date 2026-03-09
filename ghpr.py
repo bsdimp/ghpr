@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-ghpr - GitHub Pull Request landing tool for FreeBSD
+"""ghpr - GitHub Pull Request landing tool for FreeBSD.
 
 Unified tool to land GitHub pull requests into FreeBSD repositories.
 Combines the functionality of ghpr-init.sh, ghpr-stage.sh, and ghpr-push.sh.
@@ -9,13 +8,14 @@ Copyright (c) 2026 Warner Losh <imp@FreeBSD.org>
 SPDX-License-Identifier: BSD-2-Clause
 """
 
+from __future__ import annotations
+
 import argparse
 import getpass
 import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 
 class GitConfig:
@@ -25,13 +25,13 @@ class GitConfig:
     dry_run = False
 
     @staticmethod
-    def _print_cmd(cmd: List[str]) -> None:
+    def _print_cmd(cmd: list[str]) -> None:
         """Print command if verbose or dry-run mode is enabled"""
         if GitConfig.verbose or GitConfig.dry_run:
             print(f"+ {' '.join(cmd)}", file=sys.stderr)
 
     @staticmethod
-    def get(key: str, default: Optional[str] = None) -> Optional[str]:
+    def get(key: str, default: str | None = None) -> str | None:
         """Get a git config value"""
         cmd = ['git', 'config', '--get', key]
         GitConfig._print_cmd(cmd)
@@ -47,23 +47,22 @@ class GitConfig:
             return default
 
     @staticmethod
-    def get_all(key: str) -> List[str]:
+    def get_all(key: str) -> list[str]:
         """Get all values for a git config key"""
         cmd = ['git', 'config', '--get-all', key]
         GitConfig._print_cmd(cmd)
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            return [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        except subprocess.CalledProcessError:
+        if GitConfig.dry_run:
             return []
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            check=False,  # The section might not exist
+            text=True,
+        )
+        return [line.strip() for line in result.stdout.strip().splitlines(keepends=False) if line.strip()]
 
     @staticmethod
-    def set(key: str, value: str, config_type: Optional[str] = None, add: bool = False) -> None:
+    def set(key: str, value: str, config_type: str | None = None, add: bool = False) -> None:
         """Set a git config value"""
         cmd = ['git', 'config']
         if config_type:
@@ -77,7 +76,7 @@ class GitConfig:
         subprocess.run(cmd, check=True)
 
     @staticmethod
-    def unset(key: str, value: Optional[str] = None) -> None:
+    def unset(key: str, value: str | None = None) -> None:
         """Unset a git config value"""
         cmd = ['git', 'config', '--unset']
         cmd.append(key)
@@ -98,14 +97,11 @@ class GitConfig:
         GitConfig._print_cmd(cmd)
         if GitConfig.dry_run:
             return
-        try:
-            subprocess.run(
-                cmd,
-                check=True,
-                stderr=subprocess.DEVNULL
-            )
-        except subprocess.CalledProcessError:
-            pass  # Section might not exist
+        subprocess.run(
+            cmd,
+            check=False,  # The section might not exist
+            stderr=subprocess.DEVNULL
+        )
 
 
 class GitHelper:
@@ -115,7 +111,7 @@ class GitHelper:
     dry_run = False
 
     @staticmethod
-    def _print_cmd(cmd: List[str]) -> None:
+    def _print_cmd(cmd: list[str]) -> None:
         """Print command if verbose or dry-run mode is enabled"""
         if GitHelper.verbose or GitHelper.dry_run:
             print(f"+ {' '.join(cmd)}", file=sys.stderr)
@@ -124,7 +120,7 @@ class GitHelper:
     def run(args: List[str], check: bool = True, capture: bool = False,
             safe: bool = False) -> subprocess.CompletedProcess:
         """Run a git command"""
-        cmd = ['git'] + args
+        cmd = ['git', *args]
         GitHelper._print_cmd(cmd)
         if GitHelper.dry_run and not safe:
             # In dry-run mode, don't execute anything
@@ -142,18 +138,14 @@ class GitHelper:
         """Check if a branch exists"""
         cmd = ['git', 'rev-parse', '--verify', branch]
         GitHelper._print_cmd(cmd)
-        try:
-            subprocess.run(
-                cmd,
-                capture_output=True,
-                check=True
-            )
-            return True
-        except subprocess.CalledProcessError:
-            return False
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+        )
+        return proc.returncode == 0
 
     @staticmethod
-    def checkout(branch: str, create: bool = False, base: Optional[str] = None) -> None:
+    def checkout(branch: str, create: bool = False, base: str | None = None) -> None:
         """Checkout a branch, optionally creating it"""
         cmd = ['checkout']
         if create:
@@ -164,8 +156,8 @@ class GitHelper:
         GitHelper.run(cmd)
 
     @staticmethod
-    def rebase(base: str, onto: Optional[str] = None, interactive: bool = False,
-               exec_cmd: Optional[str] = None) -> None:
+    def rebase(base: str, onto: str | None = None, interactive: bool = False,
+               exec_cmd: str | None = None) -> None:
         """Rebase current branch"""
         cmd = ['rebase']
         if interactive:
@@ -179,7 +171,7 @@ class GitHelper:
 
     @staticmethod
     def push(remote: str, refspec: str, force: bool = False,
-             push_option: Optional[str] = None) -> bool:
+             push_option: str | None = None) -> bool:
         """Push to remote, return True if successful"""
         cmd = ['push']
         if push_option:
@@ -210,10 +202,10 @@ class GitHelper:
     def delete_branch(branch: str, force: bool = True) -> None:
         """Delete a branch"""
         flag = '-D' if force else '-d'
-        try:
-            GitHelper.run(['branch', flag, branch], check=False)
-        except subprocess.CalledProcessError:
-            pass  # Branch might not exist
+        GitHelper.run(
+            ['branch', flag, branch],
+            check=False,  # The branch might not exist
+        )
 
     @staticmethod
     def move_branch(branch: str, target: str = 'HEAD') -> None:
@@ -224,15 +216,15 @@ class GitHelper:
         GitHelper.run(['checkout', branch])
 
     @staticmethod
-    def get_commits_with_trailer(base: str, head: str, trailer: str, value: str) -> List[str]:
+    def get_commits_with_trailer(base: str, head: str, trailer: str, value: str) -> list[str]:
         """Get commit hashes that contain a specific trailer value"""
         cmd = ['log', '--format=%H', '--grep', f'^{trailer}: .*{value}', f'{base}..{head}']
         result = GitHelper.run(cmd, capture=True, safe=True)
-        commits = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        commits = [line.strip() for line in result.stdout.strip().splitlines(keepends=False) if line.strip()]
         return commits
 
     @staticmethod
-    def cherry_pick(commits: List[str]) -> None:
+    def cherry_pick(commits: list[str]) -> None:
         """Cherry-pick commits"""
         cmd = ['cherry-pick']
         cmd.extend(commits)
@@ -246,7 +238,7 @@ class GHHelper:
     dry_run = False
 
     @staticmethod
-    def _print_cmd(cmd: List[str]) -> None:
+    def _print_cmd(cmd: list[str]) -> None:
         """Print command if verbose or dry-run mode is enabled"""
         if GHHelper.verbose or GHHelper.dry_run:
             print(f"+ {' '.join(cmd)}", file=sys.stderr)
@@ -261,7 +253,7 @@ class GHHelper:
         subprocess.run(cmd, check=True)
 
     @staticmethod
-    def pr_edit(pr_number: int, add_label: Optional[str] = None, remove_label: Optional[str] = None) -> None:
+    def pr_edit(pr_number: int, add_label: str | None = None, remove_label: str | None = None) -> None:
         """Edit PR metadata"""
         cmd = ['gh', 'pr', 'edit', str(pr_number)]
         if add_label:
@@ -274,7 +266,7 @@ class GHHelper:
         subprocess.run(cmd, check=True)
 
     @staticmethod
-    def pr_close(pr_number: int, comment: Optional[str] = None) -> None:
+    def pr_close(pr_number: int, comment: str | None = None) -> None:
         """Close a PR"""
         cmd = ['gh', 'pr', 'close', str(pr_number)]
         if comment:
@@ -319,8 +311,7 @@ class GHPR:
 
     def die(self, message: str) -> None:
         """Print error and exit"""
-        print(f"Error: {message}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(f"Error: {message}")
 
     def is_initialized(self) -> bool:
         """Check if staging branch is initialized"""
@@ -333,7 +324,7 @@ class GHPR:
             self.die(f"No base set on {self.staging}")
         return base
 
-    def get_prs(self) -> List[str]:
+    def get_prs(self) -> list[str]:
         """Get list of PRs in staging branch"""
         return GitConfig.get_all(f'{self.config_prefix}.prs')
 
@@ -439,8 +430,8 @@ class GHPR:
         GitHelper.pull(rebase=True)
         GitHelper.rebase(self.base, interactive=True)
 
-    def stage(self, pr_number: int, reviewer: Optional[str] = None,
-              repo: str = 'freebsd-src', editor: Optional[str] = None,
+    def stage(self, pr_number: int, reviewer: str | None = None,
+              repo: str = 'freebsd-src', editor: str | None = None,
               do_continue: bool = False, force: bool = False) -> None:
         """Stage a PR for landing (ghpr-stage.sh)"""
         if not self.is_initialized():
@@ -774,7 +765,7 @@ class GHPR:
             # Get all commits in staging
             result = GitHelper.run(['log', '--format=%H', f'{base}..{self.staging}'],
                                    capture=True, safe=True)
-            all_commits = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+            all_commits = [line.strip() for line in result.stdout.strip().splitlines(keepends=False) if line.strip()]
 
             # Filter out the PR's commits
             remaining_commits = [c for c in all_commits if c not in pr_commits]
@@ -855,7 +846,7 @@ class GHPR:
                     print(f"    Branch:   {upstream_branch}")
 
 
-def main():
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description='GitHub Pull Request landing tool for FreeBSD',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -889,7 +880,7 @@ Examples:
     parser.add_argument(
         '--staging-branch',
         default='staging',
-        help='Name of staging branch (default: staging)'
+        help='Name of staging branch (default: %(default)s)'
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -902,7 +893,7 @@ Examples:
         help='Show what would be done without actually doing it (automatically prints commands)'
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+    subparsers = parser.add_subparsers(dest='command', help='Command to run', required=True)
 
     # Init command
     init_parser = subparsers.add_parser('init', help='Initialize staging branch')
@@ -918,12 +909,12 @@ Examples:
     stage_parser.add_argument(
         '--reviewer',
         default=getpass.getuser(),
-        help=f'Reviewer name for Reviewed-by trailer (default: {getpass.getuser()})'
+        help='Reviewer name for Reviewed-by trailer (default: %(default)s)'
     )
     stage_parser.add_argument(
         '--repo',
         default='freebsd-src',
-        help='GitHub repository name (default: freebsd-src)'
+        help='GitHub repository name (default: %(default)s)'
     )
     stage_parser.add_argument(
         '--editor',
@@ -956,11 +947,7 @@ Examples:
     # Status command
     subparsers.add_parser('status', help='Show staging branch status')
 
-    args = parser.parse_args()
-
-    if not args.command:
-        parser.print_help()
-        sys.exit(1)
+    args = parser.parse_args(args=argv)
 
     ghpr = GHPR(staging_branch=args.staging_branch, verbose=args.verbose, dry_run=args.dry_run)
 
