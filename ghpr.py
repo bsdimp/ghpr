@@ -35,8 +35,6 @@ class GitConfig:
         """Get a git config value"""
         cmd = ['git', 'config', '--get', key]
         GitConfig._print_cmd(cmd)
-        if GitConfig.dry_run:
-            return default
         try:
             result = subprocess.run(
                 cmd,
@@ -119,11 +117,12 @@ class GitHelper:
             print(f"+ {' '.join(cmd)}", file=sys.stderr)
 
     @staticmethod
-    def run(args: list[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+    def run(args: List[str], check: bool = True, capture: bool = False,
+            safe: bool = False) -> subprocess.CompletedProcess:
         """Run a git command"""
         cmd = ['git', *args]
         GitHelper._print_cmd(cmd)
-        if GitHelper.dry_run:
+        if GitHelper.dry_run and not safe:
             # In dry-run mode, don't execute anything
             class FakeResult:
                 stdout = ""
@@ -139,8 +138,6 @@ class GitHelper:
         """Check if a branch exists"""
         cmd = ['git', 'rev-parse', '--verify', branch]
         GitHelper._print_cmd(cmd)
-        if GitHelper.dry_run:
-            return False  # Assume doesn't exist in dry-run
         proc = subprocess.run(
             cmd,
             capture_output=True,
@@ -191,7 +188,7 @@ class GitHelper:
     @staticmethod
     def fetch(remote: str) -> None:
         """Fetch from remote"""
-        GitHelper.run(['fetch', remote])
+        GitHelper.run(['fetch', remote], safe=True)
 
     @staticmethod
     def pull(rebase: bool = True) -> None:
@@ -222,7 +219,7 @@ class GitHelper:
     def get_commits_with_trailer(base: str, head: str, trailer: str, value: str) -> list[str]:
         """Get commit hashes that contain a specific trailer value"""
         cmd = ['log', '--format=%H', '--grep', f'^{trailer}: .*{value}', f'{base}..{head}']
-        result = GitHelper.run(cmd, capture=True)
+        result = GitHelper.run(cmd, capture=True, safe=True)
         commits = [line.strip() for line in result.stdout.strip().splitlines(keepends=False) if line.strip()]
         return commits
 
@@ -337,7 +334,8 @@ class GHPR:
 
         # Check if remote exists
         try:
-            result = GitHelper.run(['remote', 'get-url', 'freebsd'], capture=True, check=False)
+            result = GitHelper.run(['remote', 'get-url', 'freebsd'],
+                                   capture=True, check=False, safe=True)
             if result.returncode != 0:
                 self.die(
                     f"No 'freebsd' remote found.\n"
@@ -364,7 +362,8 @@ class GHPR:
 
         # Check push URL
         try:
-            result = GitHelper.run(['remote', 'get-url', '--push', 'freebsd'], capture=True, check=False)
+            result = GitHelper.run(['remote', 'get-url', '--push', 'freebsd'],
+                                   capture=True, check=False, safe=True)
             if result.returncode != 0:
                 push_url = fetch_url  # If no separate push URL, it uses fetch URL
             else:
@@ -764,7 +763,8 @@ class GHPR:
             print(f"Found {len(pr_commits)} commit(s) for PR #{pr_number}")
 
             # Get all commits in staging
-            result = GitHelper.run(['log', '--format=%H', f'{base}..{self.staging}'], capture=True)
+            result = GitHelper.run(['log', '--format=%H', f'{base}..{self.staging}'],
+                                   capture=True, safe=True)
             all_commits = [line.strip() for line in result.stdout.strip().splitlines(keepends=False) if line.strip()]
 
             # Filter out the PR's commits
