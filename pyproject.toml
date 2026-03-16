@@ -1,0 +1,41 @@
+[project]
+name = "ghpr"
+version = "2.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD-2-Clause"}
+keywords = ["git", "github"]
+authors = [
+    {name = "Warner Losh", email = "imp@FreeBSD.org"}
+]
+maintainers = [
+    {name = "Warner Losh", email = "imp@FreeBSD.org"}
+]
+classifiers = [
+    "License :: OSI Approved :: Unlicense",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+]
+
+[project.scripts]
+ghpr = "ghpr.__main__:main"
+
+[project.urls]
+"Homepage" = "https://github.com/bsdimp/ghpr"
+"Bug Reports" = "https://github.com/bsdimp/ghpr/issues"
+"Source" = "https://github.com/bsdimp/ghpr"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
