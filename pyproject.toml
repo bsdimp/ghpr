@@ -1,6 +1,6 @@
 [project]
 name = "ghpr"
-version = "2.1.0"
+version = "v3"
 description = ""
 readme = "README.md"
 requires-python = ">=3.10"
