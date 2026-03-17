@@ -119,7 +119,7 @@ class GitHelper:
 
     @staticmethod
     def run(
-        args: List[str], check: bool = True, capture: bool = False, safe: bool = False
+        args: list[str], check: bool = True, capture: bool = False, safe: bool = False
     ) -> subprocess.CompletedProcess:
         """Run a git command"""
         cmd = ["git", *args]
@@ -144,6 +144,7 @@ class GitHelper:
         proc = subprocess.run(
             cmd,
             capture_output=True,
+            check=False,
         )
         return proc.returncode == 0
 
@@ -413,7 +414,7 @@ class GHPR:
             )
 
         if self.verbose:
-            print(f"✓ 'freebsd' remote is correctly configured", file=sys.stderr)
+            print("✓ 'freebsd' remote is correctly configured", file=sys.stderr)
 
     def init(self, force: bool = False) -> None:
         """Initialize staging branch for PR landing (ghpr-init.sh)"""
@@ -421,7 +422,7 @@ class GHPR:
         self._check_freebsd_remote()
 
         if force:
-            print(f"Force re-initialization requested")
+            print("Force re-initialization requested")
             if self.is_initialized() or GitHelper.branch_exists(self.staging):
                 print(f"Cleaning up existing {self.staging} branch and config...")
                 # Remove all config for this staging branch
@@ -431,7 +432,7 @@ class GHPR:
                 GitHelper.checkout(self.base)
                 # Delete the branch if it exists
                 GitHelper.delete_branch(self.staging)
-                print(f"Cleanup complete")
+                print("Cleanup complete")
 
         if self.is_initialized():
             print(f"Branch {self.staging} has already been initialized")
@@ -439,7 +440,8 @@ class GHPR:
 
         if GitHelper.branch_exists(self.staging):
             print(
-                f"Branch {self.staging} already exists, skipping creation, but rebasing to {self.base}"
+                f"Branch {self.staging} already exists. "
+                f"Skipping creation, but rebasing to {self.base}"
             )
             GitHelper.rebase(self.base, interactive=False)
         else:
@@ -542,7 +544,8 @@ class GHPR:
                 GitHelper.run(["rebase", "--continue"])
             except subprocess.CalledProcessError:
                 self.die(
-                    "Rebase continue failed. Resolve conflicts and run 'ghpr stage --continue <PR>' again."
+                    "Rebase continue failed. "
+                    "Resolve conflicts and run 'ghpr stage --continue <PR>' again."
                 )
 
             # Save PR metadata if not already saved
@@ -610,7 +613,7 @@ class GHPR:
                 )
 
             print(f"\nPR #{pr_number} staged successfully!")
-            print(f"Review the commits and when ready, run: ghpr push")
+            print("Review the commits and when ready, run: ghpr push")
             return
 
         # Normal staging flow (not --continue)
@@ -731,7 +734,7 @@ class GHPR:
             print(f"Warning: Could not fetch review information: {e}", file=sys.stderr)
 
         print(f"\nPR #{pr_number} staged successfully!")
-        print(f"Review the commits and when ready, run: ghpr push")
+        print("Review the commits and when ready, run: ghpr push")
 
     def push(self, do_pr_branch_push: bool = False) -> None:
         """Push staged changes to FreeBSD and update GitHub (ghpr-push.sh)"""
@@ -824,7 +827,6 @@ class GHPR:
 
         # Find commits that belong to this PR by looking for the Pull Request trailer
         # Note: Git normalizes "Pull-Request" to "Pull Request" in trailers
-        pr_url = f"https://github.com/freebsd/freebsd-src/pull/{pr_number}"
         pr_commits = GitHelper.get_commits_with_trailer(
             base, self.staging, "Pull Request", str(pr_number)
         )
@@ -910,7 +912,7 @@ class GHPR:
         """Show status of staging branch"""
         if not self.is_initialized():
             print(f"Staging branch '{self.staging}' is not initialized")
-            print(f"Run 'ghpr init' to initialize it")
+            print("Run 'ghpr init' to initialize it")
             return
 
         base = self.get_base()
