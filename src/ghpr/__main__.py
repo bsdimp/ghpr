@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """ghpr - GitHub Pull Request landing tool for FreeBSD.
 
 Unified tool to land GitHub pull requests into FreeBSD repositories.
