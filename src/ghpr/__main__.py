@@ -378,7 +378,10 @@ class GHPR:
 
     def _check_freebsd_remote(self) -> None:
         """Verify that 'freebsd' remote exists and points to the correct URL."""
-        expected_url = "ssh://git@gitrepo.freebsd.org/src.git"
+        allowed_urls = [
+            "git@gitrepo.freebsd.org:src.git",
+            "ssh://git@gitrepo.freebsd.org/src.git",
+        ]
 
         # Check if remote exists
         try:
@@ -392,24 +395,24 @@ class GHPR:
                 self.die(
                     f"No 'freebsd' remote found.\n"
                     f"Please add it with:\n"
-                    f"  git remote add freebsd {expected_url}",
+                    f"  git remote add freebsd {allowed_urls[0]}",
                 )
             fetch_url = result.stdout.strip()
         except Exception:
             self.die(
                 f"Failed to check 'freebsd' remote.\n"
-                f"Please ensure it exists and points to:\n"
-                f"  {expected_url}",
+                f"Please ensure it exists and points to one of the following:\n"
+                f"  {allowed_urls}",
             )
 
         # Check fetch URL
-        if fetch_url != expected_url:
+        if fetch_url not in allowed_urls:
             self.die(
                 f"'freebsd' remote fetch URL is incorrect.\n"
-                f"Expected: {expected_url}\n"
+                f"Allowed URLs: {allowed_urls!r}\n"
                 f"Got:      {fetch_url}\n"
                 f"Please update it with:\n"
-                f"  git remote set-url freebsd {expected_url}",
+                f"  git remote set-url freebsd {allowed_urls[0]}",
             )
 
         # Check push URL
@@ -421,17 +424,17 @@ class GHPR:
                 safe=True,
             )
             # If no separate push URL, it uses fetch URL
-            push_url = result.stdout.strip if result.returncode == 0 else fetch_url
+            push_url = result.stdout.strip() if result.returncode == 0 else fetch_url
         except Exception:
             push_url = fetch_url
 
-        if push_url != expected_url:
+        if push_url not in allowed_urls:
             self.die(
                 f"'freebsd' remote push URL is incorrect.\n"
-                f"Expected: {expected_url}\n"
+                f"Allowed URLs: {allowed_urls!r}\n"
                 f"Got:      {push_url}\n"
                 f"Please update it with:\n"
-                f"  git remote set-url --push freebsd {expected_url}",
+                f"  git remote set-url --push freebsd {allowed_urls[0]}",
             )
 
         if self.verbose:
