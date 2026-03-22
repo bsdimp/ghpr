@@ -25,7 +25,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, logging
+
+LOGGER = logging.get_logger("ghpr")
 
 
 class GitConfig:
@@ -532,6 +534,28 @@ class GHPR:
         GitHelper.pull(rebase=True)
         GitHelper.rebase(self.base, interactive=True)
 
+    def _checkstyle(self, base: str, tip: str) -> None:
+        """Run style checker if it exists.
+
+        Args:
+            base: base revision.
+            tip: target or HEAD revision.
+
+        """
+        checkstyle = Path("tools/build/checkstyle9.pl")
+        if not checkstyle.exists():
+            return
+        LOGGER.info("running style checker...")
+        cmd = ["perl", str(checkstyle), f"{base}..{tip}"]
+        if self.verbose or self.dry_run:
+            print(f"+ {' '.join(cmd)}", file=sys.stderr)
+        if self.dry_run:
+            return
+        try:
+            subprocess.run(cmd, check=True)  # Don't fail on style issues
+        except Exception:
+            LOGGER.warning("style checker found issues (see output above)")
+
     def stage(
         self,
         pr_number: int,
@@ -558,7 +582,7 @@ class GHPR:
 
             # First check if PR is already in our staging branch
             if pr_str in prs:
-                print(f"Error: PR #{pr_number} is already staged", file=sys.stderr)
+                LOGGER.error("PR #%d is already staged", pr_number)
 
                 try:
                     pr_info = GHHelper.pr_view(pr_number)
@@ -566,14 +590,11 @@ class GHPR:
                     assignees = pr_info.get("assignees", [])
                     if assignees:
                         assignee_logins = [a["login"] for a in assignees]
-                        print(
-                            f"Assigned to: {', '.join(assignee_logins)}",
-                            file=sys.stderr,
-                        )
+                        LOGGER.info("Assigned to: %r", assignee_logins)
                 except subprocess.CalledProcessError:
                     pass  # Continue even if we can't fetch PR info
 
-                print("\nUse --force to stage anyway", file=sys.stderr)
+                LOGGER.info("Use --force to stage anyway")
                 sys.exit(1)
 
             # Check if PR has 'staged' label but isn't actually staged
@@ -582,22 +603,20 @@ class GHPR:
                 labels = [label["name"] for label in pr_info.get("labels", [])]
 
                 if "staged" in labels:
-                    print(
-                        f"Warning: PR #{pr_number} has 'staged' label but is not "
-                        "staged locally",
-                        file=sys.stderr,
-                    )
-                    print(
+                    LOGGER.warning(
+                        "PR #%d has 'staged' label but is not staged locally. "
                         "The label may be stale. Continuing with staging...",
-                        file=sys.stderr,
+                        pr_number,
                     )
-            except subprocess.CalledProcessError as e:
-                print(f"Warning: Could not check PR status: {e}", file=sys.stderr)
-                print("Continuing with staging...", file=sys.stderr)
+            except subprocess.CalledProcessError:
+                LOGGER.warning(
+                    "Could not check PR status. Continuing with staging...",
+                    exc_info=True,
+                )
 
         # Handle --continue for interrupted rebase
         if do_continue:
-            print(f"Continuing interrupted rebase for PR #{pr_number}...")
+            LOGGER.info("Continuing interrupted rebase for PR #%d...", pr_number)
 
             # Check if we're in a rebase
             git_dir = Path(".git")
@@ -638,28 +657,21 @@ class GHPR:
                     )
 
             # Move staging branch to new tip
-            print(f"Moving {self.staging} to include PR #{pr_number}")
+            LOGGER.info("Moving %s to include PR #%d...", self.staging, pr_number)
             GitHelper.move_branch(self.staging)
 
-            # Run style checker if it exists
-            checkstyle = Path("tools/build/checkstyle9.pl")
-            if checkstyle.exists():
-                print("Running style checker...")
-                cmd = ["perl", str(checkstyle), f"{base}..{self.staging}"]
-                if self.verbose or self.dry_run:
-                    print(f"+ {' '.join(cmd)}", file=sys.stderr)
-                if not self.dry_run:
-                    try:
-                        subprocess.run(cmd, check=False)  # Don't fail on style issues
-                    except Exception as e:
-                        print(f"Style checker warning: {e}")
+            self._checkstyle(base, self.staging)
 
             # Add 'staged' label to GitHub PR
-            print(f"Adding 'staged' label to PR #{pr_number}...")
+            LOGGER.info("Adding 'staged' label to PR #%d...", pr_number)
             try:
                 GHHelper.pr_edit(pr_number, add_label="staged")
-            except Exception as e:
-                print(f"Warning: Failed to add 'staged' label to PR #{pr_number}: {e}")
+            except Exception:
+                LOGGER.warning(
+                    "failed to add 'staged' label to PR #%d",
+                    pr_number,
+                    exc_info=True,
+                )
 
             # Show review information
             try:
@@ -676,15 +688,12 @@ class GHPR:
                         if approver not in seen:
                             seen.add(approver)
                             unique_approvers.append(approver)
-                    print(f"\nApproved by: {', '.join(unique_approvers)}")
-            except Exception as e:
-                print(
-                    f"Warning: Could not fetch review information: {e}",
-                    file=sys.stderr,
-                )
+                    LOGGER.info("Approved by %r", unique_approvers)
+            except Exception:
+                LOGGER.warning("could not fetch review information", exc_info=True)
 
-            print(f"\nPR #{pr_number} staged successfully!")
-            print("Review the commits and when ready, run: ghpr push")
+            LOGGER.info("PR #%d was staged successfully!", pr_number)
+            LOGGER.info("Review the commits and when ready run 'ghpr push'!")
             return
 
         # Normal staging flow (not --continue)
@@ -696,7 +705,7 @@ class GHPR:
             GitHelper.checkout(self.staging)
 
         # Create PR branch
-        print(f"Checking out PR #{pr_number} into {pr_branch}...")
+        LOGGER.info("Checking out PR #%d into %s", pr_number, pr_branch)
 
         # Delete old PR branch if it exists
         GitHelper.delete_branch(pr_branch)
@@ -728,7 +737,7 @@ class GHPR:
         exec_cmd = f"env EDITOR={editor} git commit --amend {trailers}"
 
         # Rebase onto staging with commit amendments
-        print(f"Rebasing {pr_branch} onto {self.staging}...")
+        LOGGER.info("Rebasing %s onto %s", pr_branch, self.staging)
         try:
             GitHelper.rebase(
                 base,
@@ -765,28 +774,21 @@ class GHPR:
             )
 
         # Move staging branch to new tip
-        print(f"Moving {self.staging} to include PR #{pr_number}")
+        LOGGER.info("Moving %s to include PR #%d", pr_branch, pr_number)
         GitHelper.move_branch(self.staging)
 
-        # Run style checker if it exists
-        checkstyle = Path("tools/build/checkstyle9.pl")
-        if checkstyle.exists():
-            print("Running style checker...")
-            cmd = ["perl", str(checkstyle), f"{base}..{self.staging}"]
-            if self.verbose or self.dry_run:
-                print(f"+ {' '.join(cmd)}", file=sys.stderr)
-            if not self.dry_run:
-                try:
-                    subprocess.run(cmd, check=False)  # Don't fail on style issues
-                except Exception as e:
-                    print(f"Style checker warning: {e}")
+        self._checkstyle(base, self.staging)
 
         # Add 'staged' label to GitHub PR
-        print(f"Adding 'staged' label to PR #{pr_number}...")
+        LOGGER.info("Adding 'staged' label to PR #%d...", pr_number)
         try:
             GHHelper.pr_edit(pr_number, add_label="staged")
-        except Exception as e:
-            print(f"Warning: Failed to add 'staged' label to PR #{pr_number}: {e}")
+        except Exception:
+            LOGGER.warning(
+                "could not add 'staged' label to PR #%d",
+                pr_number,
+                exc_info=True,
+            )
 
         # Show review information
         try:
@@ -803,12 +805,12 @@ class GHPR:
                     if approver not in seen:
                         seen.add(approver)
                         unique_approvers.append(approver)
-                print(f"\nApproved by: {', '.join(unique_approvers)}")
-        except Exception as e:
-            print(f"Warning: Could not fetch review information: {e}", file=sys.stderr)
+                LOGGER.info("Approved by: %r", unique_approvers)
+        except Exception:
+            LOGGER.warning("could not fetch review information", exc_info=True)
 
-        print(f"\nPR #{pr_number} staged successfully!")
-        print("Review the commits and when ready, run: ghpr push")
+        LOGGER.info("PR #%d was staged successfully!", pr_number)
+        LOGGER.info("Review the commits and when ready run 'ghpr push'!")
 
     def push(self, do_pr_branch_push: bool = False) -> None:
         """Push staged changes to FreeBSD and update GitHub (ghpr-push.sh)."""
@@ -872,8 +874,8 @@ class GHPR:
                         pr_num,
                         comment=comment,
                     )
-                except Exception as e:
-                    print(f"Warning: Failed to update PR #{pr}: {e}")
+                except Exception:
+                    LOGGER.warning("failed to update PR #%d", pr, exc_info=True)
 
             # Delete PR branch
             GitHelper.delete_branch(f"PR-{pr}")
@@ -912,15 +914,14 @@ class GHPR:
         )
 
         if not pr_commits:
-            print(
-                f"Warning: No commits found with Pull-Request trailer for #{pr_number}",
-            )
-            print(
+            LOGGER.warning(
+                "no commits found with Pull-Request trailer for #%d. "
                 "The PR may have been manually rebased. "
-                "Proceeding with config cleanup only.",
+                "Proceeding with config cleanup only",
+                pr_number,
             )
         else:
-            print(f"Found {len(pr_commits)} commit(s) for PR #{pr_number}")
+            LOGGER.info("Found %d commit(s) for PR #%d", len(pr_commits), pr_number)
 
             # Get all commits in staging
             result = GitHelper.run(
@@ -939,11 +940,15 @@ class GHPR:
 
             if not remaining_commits:
                 # No commits left, just reset to base
-                print(f"No commits remaining, resetting {self.staging} to {base}")
+                LOGGER.info(
+                    "no commits remaining, resetting %s to %s",
+                    self.staging,
+                    base,
+                )
                 GitHelper.run(["reset", "--hard", base])
             else:
                 # Rebuild staging branch without the PR's commits
-                print(f"Rebuilding {self.staging} without PR #{pr_number}...")
+                LOGGER.info("rebuilding %s without PR #%d... ", self.staging, pr_number)
 
                 # Create a temporary branch at base
                 temp_branch = f"temp-unstage-{pr_number}"
@@ -977,8 +982,12 @@ class GHPR:
         print(f"Removing 'staged' label from PR #{pr_number}...")
         try:
             GHHelper.pr_edit(pr_number, remove_label="staged")
-        except Exception as e:
-            print(f"Warning: Failed to remove 'staged' label from PR #{pr_number}: {e}")
+        except Exception:
+            LOGGER.warning(
+                "Failed to remove 'staged' label from PR #%d",
+                pr_number,
+                exc_info=True,
+            )
 
         print(f"Successfully unstaged PR #{pr_number}")
 
