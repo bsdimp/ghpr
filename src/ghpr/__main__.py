@@ -26,6 +26,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import __version__
+
 
 class GitConfig:
     """Helper class for git config operations."""
@@ -1023,6 +1025,11 @@ Examples:
             "Show what would be done without actually doing it "
             "(automatically prints commands)"
         ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
 
     subparsers = parser.add_subparsers(
