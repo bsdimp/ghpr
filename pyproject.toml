@@ -23,10 +23,11 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
+    "click>=8.1",
 ]
 
 [project.scripts]
-ghpr = "ghpr.__main__:main"
+ghpr = "ghpr.__main__:cli"
 
 [project.urls]
 "Homepage" = "https://github.com/bsdimp/ghpr"
