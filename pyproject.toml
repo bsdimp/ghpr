@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "click>=8.1",
-    "GitPython>=3.1.44",
+    "GitPython>=3.1.48",
 ]
 
 [project.optional-dependencies]
