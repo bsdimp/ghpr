@@ -53,6 +53,25 @@ class GHHelper:
             subproc_kwargs["text"] = True
         return subprocess.run(cmd, check=check, cwd=self.working_dir, **subproc_kwargs)
 
+    def assert_logged_in(self: "Self") -> None:
+        """Assert that the user is authenticated to GitHub.
+
+        This ensures that certain operations (like `ghpr stage`) don't need to be
+        rewound too much.
+        """
+        try:
+            self.run(
+                ["auth", "status", "-h", "github.com"],
+                # `capture` and `stdout`/`stderr` are mutually exclusive.
+                capture=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+        except subprocess.CalledProcessError as cpe:
+            err_msg = f"Could not query GitHub authentication status: {cpe.stdout}"
+            raise RuntimeError(err_msg) from cpe
+
     def gh_pr(
         self: "Self",
         command: str,

@@ -5,7 +5,11 @@ TODO: improve these tests by further mocking out the inputs/outputs of `GHHelper
 
 import json
 import subprocess
+from collections.abc import Generator
+from unittest import mock
 from unittest.mock import patch
+
+import pytest
 
 from ghpr import gh
 
@@ -63,3 +67,43 @@ class TestGHHelperPRCommands:
             )
             ghh.pr_view(0)
             mock_run.assert_called()
+
+    @staticmethod
+    def test_assert_logged_in_passes(setup_staging: ...) -> None:
+        """Test positive behavior for GHHelper.assert_logged_in(..)."""
+
+        def always_pass(*args, **kwargs):
+            """Always pass :)."""
+
+        staging_repo = setup_staging
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        with patch.object(ghh, "run", side_effect=always_pass):
+            ghh.assert_logged_in()
+
+    @staticmethod
+    def test_assert_logged_in_failure_caught(setup_staging: ...) -> None:
+        """Test negative behavior for GHHelper.assert_logged_in(..) - scenario 1.
+
+        Scenario 1: the expected exception (`subprocess.CalledProcessError`) is raised
+        on failure and converted into a RuntimeError.
+        """
+        staging_repo = setup_staging
+        run_side_effect = subprocess.CalledProcessError(-1, ["bogus"])
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        with patch.object(ghh, "run", side_effect=run_side_effect):
+            with pytest.raises(RuntimeError):
+                ghh.assert_logged_in()
+
+    @staticmethod
+    def test_assert_logged_in_failure_not_caught(setup_staging: ...) -> None:
+        """Test negative behavior for GHHelper.assert_logged_in(..) - scenario 2.
+
+        Scenario 2: an unexpected exception is raised from the inner function, and
+        subsequently bubbled up as-is.
+        """
+        staging_repo = setup_staging
+        run_side_effect = AssertionError("test failure on purpose")
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        with patch.object(ghh, "run", side_effect=run_side_effect):
+            with pytest.raises(run_side_effect.__class__):
+                ghh.assert_logged_in()

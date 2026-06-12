@@ -251,6 +251,8 @@ class GHPR:
                 "Run 'ghpr init' first.",
             )
 
+        self.ghhelper.assert_logged_in()
+
         base = self.get_base()
         prs = self.get_prs()
         pr_branch = self._pr_branch(pr_number)
@@ -508,6 +510,8 @@ class GHPR:
         if not self.is_initialized():
             self.die(f"Branch {self.staging_branch} has not been initialized")
 
+        self.ghhelper.assert_logged_in()
+
         prs = self.get_prs()
         if not prs and not self.dry_run:
             self.die(f"No PRs staged in {self.staging_branch}")
@@ -625,6 +629,8 @@ class GHPR:
         """Remove a staged PR from the staging branch."""
         if not self.is_initialized():
             self.die(f"Branch {self.staging_branch} has not been initialized")
+
+        self.ghhelper.assert_logged_in()
 
         prs = self.get_prs()
         pr_str = str(pr_number)
