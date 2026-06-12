@@ -887,6 +887,7 @@ def push(ghpr: GHPR, pr_branch_push: bool) -> None:
     "--continue",
     "do_continue",
     default=False,
+    is_flag=True,
     help="Continue an interrupted rebase",
 )
 @click.option(
