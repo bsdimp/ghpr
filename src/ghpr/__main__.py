@@ -20,8 +20,8 @@ import getpass
 import subprocess
 import sys
 import traceback
+import typing
 from pathlib import Path
-from typing import Self
 
 import click
 import git
@@ -29,6 +29,9 @@ import git
 from . import __version__, logging
 from .gh import GHHelper
 from .git import GitConfig, GitHelper
+
+if typing.TYPE_CHECKING:
+    from typing import Self
 
 ALLOWED_STAGING_URLS = [
     "git@gitrepo.freebsd.org:src.git",
@@ -47,7 +50,7 @@ class GHPR:
     """Main class for GitHub PR landing operations."""
 
     def __init__(
-        self: Self,
+        self: "Self",
         dry_run: bool = False,
         base: str = DEFAULT_BASE,
         freebsd_src_repo: str = DEFAULT_FREEBSD_SRC_GITHUB_REPO,
@@ -155,7 +158,7 @@ class GHPR:
         if self.verbose:
             click.echo(f"✓ {self.staging_remote!r} remote is correctly configured")
 
-    def init(self: Self, force: bool = False) -> None:
+    def init(self: "Self", force: bool = False) -> None:
         """Initialize staging branch for PR landing (ghpr-init.sh)."""
         # Check that the staging branch's remote is properly configured
         staging_branch = self.staging_branch
@@ -209,7 +212,7 @@ class GHPR:
         self.githelper.pull(rebase=True)
         self.githelper.rebase(self.base, interactive=True)
 
-    def _checkstyle(self: Self, base: str, tip: str) -> None:
+    def _checkstyle(self: "Self", base: str, tip: str) -> None:
         """Run style checker if it exists.
 
         Args:
@@ -234,7 +237,7 @@ class GHPR:
         return f"PR-{pr_number}"
 
     def stage(
-        self: Self,
+        self: "Self",
         pr_number: int,
         reviewer: str | None = None,
         editor: str | None = None,
@@ -500,7 +503,7 @@ class GHPR:
         LOGGER.info("PR #%d was staged successfully!", pr_number)
         LOGGER.info("Review the commits and when ready run 'ghpr push'!")
 
-    def push(self: Self, do_pr_branch_push: bool = False) -> None:
+    def push(self: "Self", do_pr_branch_push: bool = False) -> None:
         """Push staged changes to FreeBSD and update GitHub (ghpr-push.sh)."""
         if not self.is_initialized():
             self.die(f"Branch {self.staging_branch} has not been initialized")
@@ -618,7 +621,7 @@ class GHPR:
         else:
             click.echo(f"\nSuccessfully landed {len(prs)} PR(s)!")
 
-    def unstage(self: Self, pr_number: int) -> None:
+    def unstage(self: "Self", pr_number: int) -> None:
         """Remove a staged PR from the staging branch."""
         if not self.is_initialized():
             self.die(f"Branch {self.staging_branch} has not been initialized")
