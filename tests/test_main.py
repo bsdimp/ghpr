@@ -88,7 +88,7 @@ class TestInit:
         staging_repo = setup_staging
         with runner.isolated_filesystem():
             result = runner.invoke(
-                __main__.cli, ["--work-dir", str(staging_repo.resolve()), "init"]
+                __main__.cli, ["--work-dir", str(staging_repo.resolve()), "init"],
             )
             assert result.exit_code == 0, format_result(result)
 

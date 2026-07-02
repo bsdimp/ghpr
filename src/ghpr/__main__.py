@@ -514,7 +514,7 @@ class GHPR:
             if self.dry_run:
                 click.echo(
                     f"DRY RUN: Step 1: Would push {len(prs)} PR(s) to FreeBSD main "
-                    "branch..."
+                    "branch...",
                 )
                 return
 
@@ -526,7 +526,7 @@ class GHPR:
                 if do_pr_branch_push:
                     for pr in prs:
                         upstream = self.gitconfig.get(
-                            f"{self.config_prefix}.{pr}.upstream"
+                            f"{self.config_prefix}.{pr}.upstream",
                         )
                         upstream_branch = self.gitconfig.get(
                             f"{self.config_prefix}.{pr}.upstream-branch",
