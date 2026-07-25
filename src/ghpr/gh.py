@@ -3,7 +3,10 @@
 import json
 import os
 import subprocess
-from typing import Self
+import typing
+
+if typing.TYPE_CHECKING:
+    from typing import Self
 
 import click
 
@@ -16,7 +19,7 @@ class GHHelper:
     """Helper class for GitHub CLI operations."""
 
     def __init__(
-        self: Self,
+        self: "Self",
         freebsd_src_repo: str,
         dry_run: bool = False,
         verbose: bool = False,
@@ -28,7 +31,7 @@ class GHHelper:
         self.working_dir = working_dir
 
     def run(
-        self: Self,
+        self: "Self",
         args: list[str],
         check: bool = True,
         capture: bool = False,
@@ -50,8 +53,27 @@ class GHHelper:
             subproc_kwargs["text"] = True
         return subprocess.run(cmd, check=check, cwd=self.working_dir, **subproc_kwargs)
 
+    def assert_logged_in(self: "Self") -> None:
+        """Assert that the user is authenticated to GitHub.
+
+        This ensures that certain operations (like `ghpr stage`) don't need to be
+        rewound too much.
+        """
+        try:
+            self.run(
+                ["auth", "status", "-h", "github.com"],
+                # `capture` and `stdout`/`stderr` are mutually exclusive.
+                capture=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+        except subprocess.CalledProcessError as cpe:
+            err_msg = f"Could not query GitHub authentication status: {cpe.stdout}"
+            raise RuntimeError(err_msg) from cpe
+
     def gh_pr(
-        self: Self,
+        self: "Self",
         command: str,
         pr: int,
         args: list[str],
@@ -82,7 +104,7 @@ class GHHelper:
         return self.run(cmd, check=True, text=True)
 
     def pr_checkout(
-        self: Self,
+        self: "Self",
         pr_number: int,
         branch: str,
     ) -> None:
@@ -90,7 +112,7 @@ class GHHelper:
         self.gh_pr("checkout", pr_number, ["-b", branch])
 
     def pr_edit(
-        self: Self,
+        self: "Self",
         pr_number: int,
         add_label: str | None = None,
         remove_label: str | None = None,
@@ -103,12 +125,12 @@ class GHHelper:
             args.extend(["--remove-label", remove_label])
         self.gh_pr("edit", pr_number, args)
 
-    def pr_close(self: Self, pr_number: int, comment: str | None = None) -> None:
+    def pr_close(self: "Self", pr_number: int, comment: str | None = None) -> None:
         """Close a PR."""
         args = ["--comment", comment] if comment else []
         self.gh_pr("close", pr_number, args)
 
-    def pr_view(self: Self, pr_number: int) -> dict:
+    def pr_view(self: "Self", pr_number: int) -> dict:
         """Get PR information including labels, assignees, and reviews."""
         if self.dry_run:
             return _DRY_RUN_VIEW_RESULTS

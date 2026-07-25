@@ -1,18 +1,21 @@
 """Git subroutines/interfaces."""
 
 import os
+import typing
 from collections.abc import Sequence
-from typing import Self
 
 import git
 from git.cmd import Git
+
+if typing.TYPE_CHECKING:
+    from typing import Self
 
 
 class GitHelper:
     """git command wrapper."""
 
     def __init__(
-        self: Self,
+        self: "Self",
         *,
         dry_run: bool = False,
         verbose: bool = False,
@@ -24,7 +27,7 @@ class GitHelper:
             os.environ["GIT_PYTHON_TRACE"] = "full"
 
     def run(
-        self: Self,
+        self: "Self",
         git_args: str | Sequence[...],
         *args: Sequence[...],
         check: bool = True,
@@ -50,12 +53,12 @@ class GitHelper:
             git_cmd = [Git.GIT_PYTHON_GIT_EXECUTABLE, *git_args]
         return self._git.execute(git_cmd, *args, **kwargs)
 
-    def rev_parse(self: Self, git_args: list, *args: list, **kwargs: dict) -> ...:
+    def rev_parse(self: "Self", git_args: list, *args: list, **kwargs: dict) -> ...:
         """Proxy for `git rev-parse`."""
         kwargs["safe"] = True
         return self.run(["rev-parse", *git_args], *args, **kwargs)
 
-    def branch_exists(self: Self, branch: str) -> bool:
+    def branch_exists(self: "Self", branch: str) -> bool:
         """Check if a branch exists.
 
         Args:
@@ -69,7 +72,7 @@ class GitHelper:
         return returncode == 0
 
     def checkout(
-        self: Self,
+        self: "Self",
         branch: str,
         create: bool = False,
         base: str | None = None,
@@ -85,7 +88,7 @@ class GitHelper:
         self.run(git_args)
 
     def config(
-        self: Self,
+        self: "Self",
         git_args: list,
         *args: list,
         **kwargs: dict,
@@ -94,7 +97,7 @@ class GitHelper:
         return self.run(["config", *git_args], *args, **kwargs)
 
     def rebase(
-        self: Self,
+        self: "Self",
         base: str,
         *args: list,
         onto: str | None = None,
@@ -114,7 +117,7 @@ class GitHelper:
         self.run(["rebase", *git_args], *args, **kwargs)
 
     def push(
-        self: Self,
+        self: "Self",
         remote: str,
         refspec: str,
         force: bool = False,
@@ -130,21 +133,21 @@ class GitHelper:
         returncode, _, _ = self.run(["push", *git_args], check=False)
         return returncode == 0
 
-    def fetch(self: Self, remote: str, *args: list, **kwargs: dict) -> None:
+    def fetch(self: "Self", remote: str, *args: list, **kwargs: dict) -> None:
         """Fetch from remote."""
         kwargs["safe"] = True
         self.run(["fetch", remote], *args, **kwargs)
 
-    def pull(self: Self, rebase: bool = True, *args: list, **kwargs: dict) -> None:
+    def pull(self: "Self", rebase: bool = True, *args: list, **kwargs: dict) -> None:
         """Pull from current upstream."""
         self.run(["pull", "--rebase"] if rebase else [], *args, **kwargs)
 
-    def branch(self: Self, git_args: list, *args: list, **kwargs: dict) -> None:
+    def branch(self: "Self", git_args: list, *args: list, **kwargs: dict) -> None:
         """Proxy for `git branch`."""
         self.run(["branch", *git_args], *args, **kwargs)
 
     def delete_branch(
-        self: Self,
+        self: "Self",
         branch: str,
         force: bool = True,
         *args: list,
@@ -153,7 +156,7 @@ class GitHelper:
         """Delete a branch."""
         self.branch(["-D" if force else "-d", branch], *args, **kwargs)
 
-    def move_branch(self: Self, branch: str, target: str = "HEAD") -> None:
+    def move_branch(self: "Self", branch: str, target: str = "HEAD") -> None:
         """Force-move a branch to a specific commit and check it out."""
         # Force-move the branch pointer
         self.branch(["-f", branch, target])
@@ -161,7 +164,7 @@ class GitHelper:
         self.checkout([branch])
 
     def get_commits_with_trailer(
-        self: Self,
+        self: "Self",
         base: str,
         head: str,
         trailer: str,
@@ -196,7 +199,7 @@ class GitHelper:
         ]
 
     def cherry_pick(
-        self: Self,
+        self: "Self",
         git_args: list[str],
         *args: list,
         **kwargs: dict,
@@ -204,13 +207,13 @@ class GitHelper:
         """Cherry-pick commits."""
         self.run(["cherry-pick", *git_args], *args, **kwargs)
 
-    def log(self: Self, git_args: list, *args: list, **kwargs: dict) -> ...:
+    def log(self: "Self", git_args: list, *args: list, **kwargs: dict) -> ...:
         """Proxy for `git log`."""
         kwargs.setdefault("capture", True)
         kwargs["safe"] = True
         return self.run(["log", *git_args], *args, **kwargs)
 
-    def remote(self: Self, git_args: list, *args: list, **kwargs: dict) -> ...:
+    def remote(self: "Self", git_args: list, *args: list, **kwargs: dict) -> ...:
         """Proxy for `git remote`."""
         kwargs.setdefault("safe", True)
         return self.run(["remote", *git_args], *args, **kwargs)
@@ -219,7 +222,7 @@ class GitHelper:
 class GitConfig(GitHelper):
     """Helper class for git config operations."""
 
-    def get(self: Self, key: str, default: str | None = None) -> str | None:
+    def get(self: "Self", key: str, default: str | None = None) -> str | None:
         """Get a git config value."""
         try:
             output = self.config(
@@ -234,7 +237,7 @@ class GitConfig(GitHelper):
         else:
             return output
 
-    def get_all(self: Self, key: str) -> list[str]:
+    def get_all(self: "Self", key: str) -> list[str]:
         """Get all values for a git config key."""
         output = self.config(
             ["--get-all", key],
@@ -249,7 +252,7 @@ class GitConfig(GitHelper):
         ]
 
     def set(
-        self: Self,
+        self: "Self",
         key: str,
         value: ...,
         config_type: str | None = None,
@@ -275,7 +278,7 @@ class GitConfig(GitHelper):
         self.config(args)
 
     def unset(
-        self: Self,
+        self: "Self",
         key: str,
         value: str | None = None,
     ) -> None:
@@ -286,7 +289,7 @@ class GitConfig(GitHelper):
         self.config(args, check=False)
 
     def remove_section(
-        self: Self,
+        self: "Self",
         section: str,
     ) -> None:
         """Remove a git config section."""
