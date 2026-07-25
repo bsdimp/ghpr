@@ -30,7 +30,9 @@ dependencies = [
 
 [project.optional-dependencies]
 coverage = [
-    "coverage~=7.0",
+    # devel/py-coverage needs to be updated from 7.9.2 to a newer version:
+    # https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=297035
+    "coverage>=7.9.0",
     "pytest-cov>=5.0.0"
 ]
 test = [
