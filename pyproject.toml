@@ -27,7 +27,7 @@ dependencies = [
     # devel/py-click in ports needs to be updated from 8.3.2 to a newer version:
     # https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=296999
     "click>=8.3",
-    "GitPython>=3.1.44",
+    "GitPython>=3.1.57",
 ]
 
 [project.optional-dependencies]
