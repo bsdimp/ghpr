@@ -26,7 +26,7 @@ classifiers = [
 dependencies = [
     # devel/py-click in ports needs to be updated from 8.3.2 to a newer version:
     # https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=296999
-    "click>=8.3",
+    "click>=8.4.2",
     "GitPython>=3.1.44",
 ]
 
