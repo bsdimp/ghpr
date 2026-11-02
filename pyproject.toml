@@ -21,13 +21,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
-    # devel/py-click in ports needs to be updated from 8.3.2 to a newer version:
-    # https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=296999
-    "click>=8.3",
-    "GitPython>=3.1.44",
+    "click>=8.5.0",
+    "GitPython>=3.1.62",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +37,7 @@ coverage = [
     "pytest-cov>=5.0.0"
 ]
 test = [
-    "pytest~=8.0.0",
+    "pytest~=9.0.0",
     "pytest-timeout~=2.4.0"
 ]
 
@@ -118,6 +117,7 @@ env_list =
     py312
     py313
     py314
+    py315
 
 [testenv]
 extras =

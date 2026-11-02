@@ -7,7 +7,7 @@ repos:
       - id: check-merge-conflict
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.11
+    rev: v0.17.3
     hooks:
       - id: ruff
         types_or:
@@ -20,11 +20,11 @@ repos:
           - python
           - pyi
   - repo: https://github.com/pycqa/flake8
-    rev: 7.3.0
+    rev: 7.5.0
     hooks:
       - id: flake8
   - repo: https://github.com/pre-commit/pre-commit
-    rev: v4.5.1
+    rev: v4.7.0
     hooks:
       - id: validate_manifest
   - repo: https://github.com/adrienverge/yamllint
@@ -32,6 +32,6 @@ repos:
     hooks:
       - id: yamllint
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.25
+    rev: v0.27
     hooks:
       - id: validate-pyproject
