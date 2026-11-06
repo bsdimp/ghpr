@@ -33,9 +33,14 @@ from .git import GitConfig, GitHelper
 if typing.TYPE_CHECKING:
     from typing import Self
 
-ALLOWED_STAGING_URLS = [
+ALLOWED_STAGING_PUSH_REMOTES = [
     "git@gitrepo.freebsd.org:src.git",
+    "git+ssh://git@gitrepo.freebsd.org:src.git",
     "ssh://git@gitrepo.freebsd.org/src.git",
+]
+ALLOWED_STAGING_FETCH_REMOTES = [
+    "https://git.freebsd.org/src.git",
+    *ALLOWED_STAGING_PUSH_REMOTES,
 ]
 DEFAULT_BASE = "main"
 DEFAULT_FREEBSD_SRC_GITHUB_REPO = "freebsd/freebsd-src"
@@ -122,24 +127,26 @@ class GHPR:
             self.die(
                 f"No {self.staging_remote!r} remote found.\n"
                 f"Please add it with:\n"
-                f"  git remote add {self.staging_remote} {ALLOWED_STAGING_URLS[0]}",
+                f"  git remote add {self.staging_remote} {ALLOWED_STAGING_PUSH_REMOTES[-1]}",
             )
 
-        def validate_url(url: str, desc: str, set_url_flags: str) -> None:
+        def validate_url(
+            url: str, desc: str, set_url_flags: str, allowed_remotes: list[str]
+        ) -> None:
             """Confirm that the URL specified is valid."""
-            if url.lower() not in ALLOWED_STAGING_URLS:
+            if url.lower() not in allowed_remotes:
                 set_url_args = (
-                    f"{set_url_flags}{self.staging_remote} {ALLOWED_STAGING_URLS[0]}"
+                    f"{set_url_flags}{self.staging_remote} {allowed_remotes[0]}"
                 )
                 self.die(
                     f"{self.staging_remote!r} remote's {desc} URL is incorrect.\n"
-                    f"Allowed URLs: {ALLOWED_STAGING_URLS!r}\n"
+                    f"Allowed URLs: {allowed_remotes!r}\n"
                     f"Got:      {url!r}\n"
                     f"Please update it with:\n"
                     f"  git remote set-url {set_url_args}",
                 )
 
-        validate_url(fetch_url, "fetch", "")
+        validate_url(fetch_url, "fetch", "", ALLOWED_STAGING_FETCH_REMOTES)
 
         # Check push URL
         try:
@@ -153,7 +160,7 @@ class GHPR:
         except subprocess.CalledProcessError:
             push_url = fetch_url
 
-        validate_url(push_url, "push", "--push")
+        validate_url(push_url, "push", "--push", ALLOWED_STAGING_PUSH_REMOTES)
 
         if self.verbose:
             click.echo(f"✓ {self.staging_remote!r} remote is correctly configured")
