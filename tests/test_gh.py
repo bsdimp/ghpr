@@ -45,6 +45,22 @@ class TestGHHelperPRCommands:
             mock_run.assert_called()
 
     @staticmethod
+    def test_edit_failed_command(setup_staging: ...) -> None:
+        """Test negative behavior for `GHHelper.pr_edit(..)`.
+
+        The expected exception (`subprocess.CalledProcessError`) is raised when
+        `gh pr edit` fails.
+        """
+        staging_repo = setup_staging
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        run_side_effect = subprocess.CalledProcessError(-1, ["bogus"])
+        with patch.object(ghh, "run") as mock_run:
+            mock_run.side_effect = run_side_effect
+            with pytest.raises(subprocess.CalledProcessError):
+                ghh.pr_edit(0)
+            mock_run.assert_called()
+
+    @staticmethod
     def test_view_dry_run(setup_staging: ...) -> None:
         """Test `gh pr view` (dry-run) integration."""
         staging_repo = setup_staging
@@ -54,8 +70,47 @@ class TestGHHelperPRCommands:
             mock_gh_pr.assert_not_called()
 
     @staticmethod
-    def test_view_mocked(setup_staging: ...) -> None:
-        """Test `gh pr view` (mocked) integration."""
+    def test_view_bad_json_from_gh(setup_staging: ...) -> None:
+        """Test negative behavior for `GHHelper.pr_view(..)` - Scenario 1.
+
+        Scenario 1: the expected exception (`json.JSONDecodeError`) is raised
+        when `gh pr view` outputs invalid JSON.
+        """
+        staging_repo = setup_staging
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        with patch.object(ghh, "run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                [],
+                returncode=0,
+                stdout="This is not valid JSON",
+                stderr="",
+            )
+            with pytest.raises(json.JSONDecodeError):
+                ghh.pr_view(0)
+            mock_run.assert_called()
+
+    @staticmethod
+    def test_view_failed_command(setup_staging: ...) -> None:
+        """Test negative behavior for `GHHelper.pr_view(..)` - Scenario 2.
+
+        Scenario 2: the expected exception (`subprocess.CalledProcessError`) is
+        raised when `gh pr view` fails.
+        """
+        staging_repo = setup_staging
+        ghh = gh.GHHelper(staging_repo, verbose=True)
+        run_side_effect = subprocess.CalledProcessError(-1, ["bogus"])
+        with patch.object(ghh, "run") as mock_run:
+            mock_run.side_effect = run_side_effect
+            with pytest.raises(subprocess.CalledProcessError):
+                ghh.pr_view(0)
+            mock_run.assert_called()
+
+    @staticmethod
+    def test_view_good_json(setup_staging: ...) -> None:
+        """Test positive behavior for `GHHelper.pr_view(..)`.
+
+        The output from `gh pr view` is mocked with valid JSON.
+        """
         staging_repo = setup_staging
         ghh = gh.GHHelper(staging_repo, verbose=True)
         with patch.object(ghh, "run") as mock_run:
@@ -65,12 +120,12 @@ class TestGHHelperPRCommands:
                 stdout=json.dumps({"bogus": "json"}),
                 stderr="",
             )
-            ghh.pr_view(0)
+            assert ghh.pr_view(0) == {"bogus": "json"}
             mock_run.assert_called()
 
     @staticmethod
     def test_assert_logged_in_passes(setup_staging: ...) -> None:
-        """Test positive behavior for GHHelper.assert_logged_in(..)."""
+        """Test positive behavior for `GHHelper.assert_logged_in(..)`."""
 
         def always_pass(*args, **kwargs):
             """Always pass :)."""

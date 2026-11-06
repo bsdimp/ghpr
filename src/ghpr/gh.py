@@ -77,6 +77,7 @@ class GHHelper:
         command: str,
         pr: int,
         args: list[str],
+        **run_kwargs,
     ) -> subprocess.CompletedProcess | None:
         """Run `gh pr`.
 
@@ -101,7 +102,7 @@ class GHHelper:
             str(pr),
             *args,
         ]
-        return self.run(cmd, check=True, text=True)
+        return self.run(cmd, **run_kwargs)
 
     def pr_checkout(
         self: "Self",
@@ -138,5 +139,5 @@ class GHHelper:
             "--json",
             "labels,assignees,reviews",
         ]
-        result = self.gh_pr("view", pr_number, args)
+        result = self.gh_pr("view", pr_number, args, capture=True)
         return json.loads(result.stdout)
