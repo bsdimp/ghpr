@@ -25,10 +25,16 @@ def sandbox(new_path: Path) -> None:
         os.chdir(old_path)
 
 
-def setup_freebsd_remote(repo_dir: Path, remote: str) -> None:
+def setup_freebsd_remote(
+    repo_dir: Path, fetch_remote: str, push_remote: str | None = None
+) -> None:
     """Fixture that sets up a bogus repo with the https://."""
     repo = git.Repo(repo_dir)
-    repo.create_remote("freebsd", remote)
+    repo.create_remote("freebsd", fetch_remote)
+    if fetch_remote is not None and fetch_remote != push_remote:
+        freebsd_remote = repo.remotes.freebsd
+        with freebsd_remote.config_writer as cw:
+            cw.set("pushurl", push_remote or fetch_remote)
 
 
 def format_result(result: ...) -> str:

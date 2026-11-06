@@ -34,19 +34,19 @@ class TestInit:
 
     @staticmethod
     @pytest.mark.parametrize(
-        "remote",
+        "push_remote",
         [
             "https://bogus/src",
             "git@bogus:src",
             "git+ssh://bogus/src",
         ],
     )
-    def test_bogus_remotes(bare_repo: ..., remote: str) -> None:
-        """Confirm that pointing ghpr at a repo with a bogus freebsd remote fails.
+    def test_bogus_remotes(bare_repo: ..., push_remote: str) -> None:
+        """Confirm that pointing ghpr at a repo with bogus freebsd remotes fails.
 
         This is not an exhaustive battery of tests.
         """
-        setup_freebsd_remote(bare_repo, remote)
+        setup_freebsd_remote(bare_repo, push_remote)
         runner = CliRunner()
         with runner.isolated_filesystem(bare_repo):
             result = runner.invoke(__main__.cli, ["init"])
@@ -54,18 +54,58 @@ class TestInit:
 
     @staticmethod
     @pytest.mark.parametrize(
-        "remote",
+        "fetch_remote",
         [
-            __main__.ALLOWED_STAGING_URLS[0].upper(),
-            *__main__.ALLOWED_STAGING_URLS,
+            __main__.ALLOWED_STAGING_FETCH_REMOTES[-1].upper(),
+            *__main__.ALLOWED_STAGING_FETCH_REMOTES,
         ],
     )
-    def test_allowed_remotes(bare_repo: ..., remote: str) -> None:
-        """Confirm that pointing ghpr at a repo with a bogus.
+    def test_allowed_fetch_remotes(
+        bare_repo: ...,
+        allowed_staging_url: str,
+        fetch_remote: str | None,
+    ) -> None:
+        """Confirm that pointing ghpr at a repo with valid freebsd remotes works.
 
         This is not an exhaustive battery of tests.
         """
-        setup_freebsd_remote(bare_repo, remote)
+        setup_freebsd_remote(bare_repo, fetch_remote, allowed_staging_url)
+        runner = CliRunner()
+        with runner.isolated_filesystem(bare_repo):
+            result = runner.invoke(__main__.cli, ["init"])
+            assert result.exit_code == 0, format_result(result)
+
+    @staticmethod
+    def test_push_remote_defaults_to_fetch_remote(
+        bare_repo: ...,
+        allowed_staging_url: str,
+    ) -> None:
+        """Confirm that pointing ghpr at a repo with just a fetch remote works."""
+        setup_freebsd_remote(bare_repo, allowed_staging_url, None)
+        runner = CliRunner()
+        with runner.isolated_filesystem(bare_repo):
+            result = runner.invoke(__main__.cli, ["init"])
+            assert result.exit_code == 0, format_result(result)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "push_remote",
+        [
+            None,
+            __main__.ALLOWED_STAGING_PUSH_REMOTES[-1].upper(),
+            *__main__.ALLOWED_STAGING_PUSH_REMOTES,
+        ],
+    )
+    def test_allowed_push_remotes(
+        bare_repo: ...,
+        allowed_staging_url: str,
+        push_remote: str,
+    ) -> None:
+        """Confirm that pointing ghpr at a repo with valid freebsd push remote works.
+
+        This is not an exhaustive battery of tests.
+        """
+        setup_freebsd_remote(bare_repo, allowed_staging_url, push_remote)
         runner = CliRunner()
         with runner.isolated_filesystem(bare_repo):
             result = runner.invoke(__main__.cli, ["init"])
@@ -88,7 +128,8 @@ class TestInit:
         staging_repo = setup_staging
         with runner.isolated_filesystem():
             result = runner.invoke(
-                __main__.cli, ["--work-dir", str(staging_repo.resolve()), "init"],
+                __main__.cli,
+                ["--work-dir", str(staging_repo.resolve()), "init"],
             )
             assert result.exit_code == 0, format_result(result)
 

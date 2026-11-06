@@ -30,8 +30,11 @@ def bare_repo(tmp_path: ...) -> Generator[pathlib.Path]:
 
 @pytest.fixture(scope="session")
 def allowed_staging_url() -> Generator[str]:
-    """Shorthand for the first element in `ALLOWED_STAGING_URLS`."""
-    return __main__.ALLOWED_STAGING_URLS[0]
+    """Shorthand for the last element in `ALLOWED_STAGING_PUSH_REMOTES`.
+
+    The last element is guaranteed to work for both fetch and push.
+    """
+    return __main__.ALLOWED_STAGING_PUSH_REMOTES[-1]
 
 
 @pytest.fixture
