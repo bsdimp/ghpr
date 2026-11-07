@@ -35,3 +35,10 @@ repos:
     rev: v0.27
     hooks:
       - id: validate-pyproject
+  - repo: https://github.com/commit-check/commit-check
+    rev: v2.19.5
+    hooks:
+      - id: check-author-name
+      - id: check-author-email
+      - id: check-message
+        args: [--config, commit-check.toml]
