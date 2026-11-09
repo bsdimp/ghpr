@@ -5,8 +5,7 @@
 
 name: Build and Test
 
-# yamllint disable-line rule:truthy
-on:
+"on":
   pull_request:
     branches: ["main"]
   push:
@@ -16,6 +15,7 @@ permissions:
 
 jobs:
   build-and-test:
+    name: Build and test (Ubuntu)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -33,8 +33,59 @@ jobs:
           pip install tox
       - name: Test with tox
         run: |
-          # tox requires environments be specified like `py312`, etc, instead
-          # of `3.12`.
-          target_python_env=$(echo "${{ matrix.python_version }}" | \
-            sed -e 's/^/py/' -e 's/\.//')
           tox run -e coverage,${{ matrix.python_version }} -c .
+
+  build-and-test-freebsd:
+    name: Build and test (FreeBSD)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - release: 15.1
+        default_python_flavor:
+          - py312
+        python_flavor:
+          - py311
+          - py312
+          - py313
+          - py314
+          - py315
+        release:
+          - 15.1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Start FreeBSD ${{ matrix.release }} VM
+        # yamllint disable-line rule:line-length
+        uses: vmactions/freebsd-vm@e9ea2cef1135a17c880e9ed9956c983d58421ece  # v1.5.3
+        with:
+          # NOTE: databases/py-sqlite3 is needed for `coverage.py`. It needs to
+          # be the same version as whatever's running `tox`.
+          prepare: |
+            pkg update
+            pkg install -y \
+                databases/py-sqlite3@${{ matrix.default_python_flavor }} \
+                devel/git \
+                devel/py-pip@${{ matrix.default_python_flavor }} \
+                devel/py-tox@${{ matrix.default_python_flavor }} \
+                devel/py-setuptools@${{ matrix.python_flavor }} \
+                devel/py-wheel@${{ matrix.python_flavor }}
+
+          release: "${{ matrix.release }}"
+          # NOTE: rsync was the only option that seems to work at time of
+          # writing (2026/11/09).
+          sync: rsync
+          sync-time: true
+      - name: Mark src/ "safe" for git
+        shell: freebsd {0}
+        run: |
+          srcdir="$(realpath src)"
+          git config --global --add safe.directory "${srcdir}"
+      - name: Test with tox
+        shell: freebsd {0}
+        run: |
+          cd src && \
+          tox run -e coverage,${{ matrix.python_flavor }} -c .
