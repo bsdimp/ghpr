@@ -161,7 +161,7 @@ class GitHelper:
         # Force-move the branch pointer
         self.branch(["-f", branch, target])
         # Check out the branch
-        self.checkout([branch])
+        self.checkout(branch)
 
     def get_commits_with_trailer(
         self: "Self",
