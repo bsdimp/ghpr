@@ -119,6 +119,7 @@ class GHPR:
         try:
             fetch_url = self.githelper.remote(
                 ["get-url", self.staging_remote],
+                capture=True,
                 strip_newline_in_stdout=True,
                 with_extended_output=False,
                 safe=True,
@@ -153,6 +154,7 @@ class GHPR:
             # If no separate push URL, it uses fetch URL
             push_url = self.githelper.remote(
                 ["get-url", "--push", self.staging_remote],
+                capture=True,
                 strip_newline_in_stdout=True,
                 with_extended_output=False,
                 safe=True,
