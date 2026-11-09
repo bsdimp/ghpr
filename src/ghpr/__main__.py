@@ -219,7 +219,7 @@ class GHPR:
         click.echo(f"Updating {self.base} and rebasing {self.staging_branch}...")
         self.githelper.checkout(self.base)
         self.githelper.pull(rebase=True)
-        self.githelper.rebase(self.base, interactive=True)
+        self.githelper.rebase(self.base, interactive=False)
 
     def _checkstyle(self: "Self", base: str, tip: str) -> None:
         """Run style checker if it exists.
@@ -443,7 +443,7 @@ class GHPR:
             self.githelper.rebase(
                 base,
                 onto=self.staging_branch,
-                interactive=True,
+                interactive=False,
                 exec_cmd=exec_cmd,
             )
         except git.exc.GitCommandError:
