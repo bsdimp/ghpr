@@ -184,7 +184,7 @@ class GHPR:
                 # (can't delete a branch we're on)
                 self.githelper.checkout(self.base)
                 # Delete the branch if it exists
-                self.githelper.delete_branch(staging_branch)
+                self.githelper.delete_branch(staging_branch, check=False)
                 click.echo("Cleanup complete")
 
         if self.is_initialized():
@@ -409,7 +409,7 @@ class GHPR:
         LOGGER.info("Checking out PR #%d into %s", pr_number, pr_branch)
 
         # Delete old PR branch if it exists
-        self.githelper.delete_branch(pr_branch)
+        self.githelper.delete_branch(pr_branch, check=False)
 
         # Checkout the PR
         try:
