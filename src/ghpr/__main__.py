@@ -132,7 +132,7 @@ class GHPR:
             )
 
         def validate_url(
-            url: str, desc: str, set_url_flags: str, allowed_remotes: list[str]
+            url: str, desc: str, set_url_flags: str, allowed_remotes: list[str],
         ) -> None:
             """Confirm that the URL specified is valid."""
             if url.lower() not in allowed_remotes:
@@ -557,7 +557,7 @@ class GHPR:
 
                 # Push to FreeBSD main
                 click.echo("Pushing to FreeBSD main...")
-                if self.ghhelper.push(
+                if self.githelper.push(
                     self.staging_remote,
                     "HEAD:main",
                     push_option="confirm-author",
