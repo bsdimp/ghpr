@@ -4,15 +4,93 @@ Python-based tool to land GitHub pull requests into FreeBSD repositories.
 
 ## Requirements
 
-- Python 3
+### Base Requirements
+
+These base requirements are true for all platforms.
+
+- Python 3.10 and later with `setuptools-scm` installed.
 - `git` command-line tool
-- `gh` (GitHub CLI) - Install with `pkg install gh` or from https://cli.github.com
-- GitHub authentication configured (`gh auth login`)
-- FreeBSD git repository with `freebsd` remote
+- `git-fixup-helper` function aliases (packaged with `git` on some distributions, e.g., FreeBSD).
+- `gh` (GitHub CLI)
+
+## Setup
+
+### GitHub
+
+You must authenticate to GitHub so `gh` can be used by a git clone.
+
+Recommended process:
+
+1. Run `gh auth login`.
+1. Follow the instructions in the prompts to complete the remainder of the authentication process.
+
+### Git Clone
+
+The following remotes must be set up in order for ghpr to use the workspace:
+- A FreeBSD git repository with `freebsd` remote (as documented in the [Committer's Guide](https://docs.freebsd.org/en/articles/committers-guide/#git-primer).
+- A corresponding configured GitHub repo is required.
+
+Recommended process (from scratch):
+```sh
+repo=src
+git clone -o freebsd --config remote.freebsd.fetch='+refs/notes/*:refs/notes/*' https://git.freebsd.org/${repo}.git
+git remote set-url --push freebsd git@gitrepo.freebsd.org:${repo}.git
+git remote add github https://github.com/freebsd/freebsd-${repo}
+git fetch --all
+```
+
+**Important**: don't forget to do `git config user.name` and `git config user.email` afterwards!
 
 ## Installation
 
-Build from ports (`devel/ghpr`) or install the package once the package builders have caught up.
+This section contains some platform-agnostic directions and platform-specific
+directions on how to install the prerequisites needed for `ghpr`.
+
+### Install From Source
+
+Using...
+* ... `pip`: `pip install https://github.com/bsdimp/ghpr@v7` (discouraged)
+* ... `pip`: `pip install --user https://github.com/bsdimp/ghpr@v7` (discouraged, but less so than the prior form)
+* ... `pipx`: `pipx install https://github.com/bsdimp/ghpr@v7` (encouraged)
+
+`pipenv` installs are permitted as well, but the procedure is outside the scope of this document.
+
+### FreeBSD
+
+Either build the package from ports or install the package.
+
+#### Ports build process
+```sh
+cd /path/to/ports/tree
+cd devel/ghpr
+sudo make clean config
+make build
+sudo make install
+```
+
+#### Package install process
+```sh
+sudo pkg install -y py312-ghpr
+```
+
+### macOS
+
+This section assumes the following:
+1. Homebrew is installed.
+1. MacPorts is (optionally) installed.
+    1. MacPorts is the current recommended way of installing third-party software on Intel Macs.
+
+#### Dependency installation process
+
+1. Some applications need to be installed first via one of the third-party package managers:
+    - With Homebrew: `brew install gh git python3`
+    - With MacPorts: `sudo ports install gh git python3`
+1. `git-fixup-editor` needs to be installed with Homebrew, e.g., `brew install git-fixup-editor`.
+1. Install an appropriate Python package manager, e.g., `pip` or `pipx`.
+    - The project does not currently support hatch, poetry, or uv.
+
+Once all of the dependencies have been installed, follow the directions
+documented under the [Install From Source](#install-from-source) section.
 
 ## Global Options
 
@@ -125,7 +203,7 @@ This will:
 ## Workflow Example
 
 ```bash
-# One-time setup
+# Perform sanity checks and set up staging branch.
 ghpr init
 
 # Stage PRs
@@ -214,11 +292,11 @@ ghpr push --push-pr-branches
 ### Improvements
 
 1. **Unified interface** - Single command with subcommands instead of three scripts
-2. **Better error handling** - Python exceptions with clear messages
-3. **Status command** - See what's staged before pushing
-4. **Type safety** - Catches errors earlier with type hints
-5. **Extensibility** - Easy to add new features in Python
-6. **Help text** - Built-in `--help` for all commands
+1. **Better error handling** - Python exceptions with clear messages
+1. **Status command** - See what's staged before pushing
+1. **Type safety** - Catches errors earlier with type hints
+1. **Extensibility** - Easy to add new features in Python
+1. **Help text** - Built-in `--help` for all commands
 
 ### Behavioral Changes
 
@@ -242,11 +320,11 @@ Make sure:
 ### Rebase conflicts during stage
 
 If rebase fails during `stage`:
-1. Resolve conflicts manually: `vim <conflicted-files>`
-2. Stage resolved files: `git add <files>`
-3. Continue: `ghpr stage --continue <PR>`
+1. Resolve conflicts manually, e.g., `vim <conflicted-files>`
+1. Stage resolved files: `git add <files>`
+1. Continue: `ghpr stage --continue <PR>`
 
-Alternatively, to abort:
+Alternatively, abort the rebase operations:
 ```bash
 git rebase --abort
 ```
@@ -255,15 +333,16 @@ git rebase --abort
 
 If rebase fails during `push`:
 1. Resolve conflicts manually
-2. `git rebase --continue`
-3. Re-run `ghpr push`
+1. `git rebase --continue`
+1. Re-run `ghpr push`
 
 ### Cherry-pick conflicts during unstage
 
 If unstage fails while rebuilding the staging branch:
 1. The operation will be rolled back
-2. You can manually rebase to remove the PR
-3. Or use `git rebase -i main` to interactively remove commits
+1. You can..
+    1. Manually rebase to remove the PR or
+    1. Use `git rebase -i main` to interactively remove commits
 
 ### "PR is already staged"
 
@@ -287,12 +366,13 @@ From the original scripts' TODO comments:
 - [ ] Auto-bump `.Dd` dates in man pages
 - [ ] Run igor (man page linter) before/after
 - [ ] Support staging multiple PRs at once with single command
-- [ ] Dry-run mode to preview operations
+- [x] Dry-run mode to preview operations
 - [ ] Better conflict resolution hints
 
 ### Editor Hook
 
-The `--editor` option or `$HOME/bin/git-fixup-editor` can be used to automatically edit commit messages during rebase. This is useful for:
+The `--editor` option or `$HOME/bin/git-fixup-editor` can be used to
+automatically edit commit messages during rebase. This is useful for:
 - Fixing commit message formatting
 - Adding missing metadata
 - Standardizing commit titles
