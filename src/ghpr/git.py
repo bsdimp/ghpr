@@ -41,10 +41,7 @@ class GitHelper:
 
         kwargs["stdout_as_string"] = True
         kwargs["with_exceptions"] = check
-        # Git.execute(... with_extended_output=False, ...) crashes with versions of the
-        # library: https://github.com/gitpython-developers/GitPython/pull/2126 .
-        # kwargs["with_stdout"] = capture
-        kwargs["with_stdout"] = True
+        kwargs["with_stdout"] = capture
         kwargs.setdefault("with_extended_output", True)
 
         if isinstance(git_args, str):
@@ -161,7 +158,7 @@ class GitHelper:
         # Force-move the branch pointer
         self.branch(["-f", branch, target])
         # Check out the branch
-        self.checkout([branch])
+        self.checkout(branch)
 
     def get_commits_with_trailer(
         self: "Self",
@@ -191,6 +188,7 @@ class GitHelper:
         ]
         output = self.log(
             cmd,
+            capture=True,
             strip_newline_in_stdout=True,
             with_extended_output=False,
         )
@@ -227,6 +225,7 @@ class GitConfig(GitHelper):
         try:
             output = self.config(
                 ["--get", key],
+                capture=True,
                 safe=True,
                 strip_newline_in_stdout=True,
                 with_extended_output=False,
@@ -241,6 +240,7 @@ class GitConfig(GitHelper):
         """Get all values for a git config key."""
         output = self.config(
             ["--get-all", key],
+            capture=True,
             check=False,  # The section might not exist.
             safe=True,
             strip_newline_in_stdout=True,

@@ -119,6 +119,7 @@ class GHPR:
         try:
             fetch_url = self.githelper.remote(
                 ["get-url", self.staging_remote],
+                capture=True,
                 strip_newline_in_stdout=True,
                 with_extended_output=False,
                 safe=True,
@@ -131,7 +132,7 @@ class GHPR:
             )
 
         def validate_url(
-            url: str, desc: str, set_url_flags: str, allowed_remotes: list[str]
+            url: str, desc: str, set_url_flags: str, allowed_remotes: list[str],
         ) -> None:
             """Confirm that the URL specified is valid."""
             if url.lower() not in allowed_remotes:
@@ -153,6 +154,7 @@ class GHPR:
             # If no separate push URL, it uses fetch URL
             push_url = self.githelper.remote(
                 ["get-url", "--push", self.staging_remote],
+                capture=True,
                 strip_newline_in_stdout=True,
                 with_extended_output=False,
                 safe=True,
@@ -182,7 +184,7 @@ class GHPR:
                 # (can't delete a branch we're on)
                 self.githelper.checkout(self.base)
                 # Delete the branch if it exists
-                self.githelper.delete_branch(staging_branch)
+                self.githelper.delete_branch(staging_branch, check=False)
                 click.echo("Cleanup complete")
 
         if self.is_initialized():
@@ -217,7 +219,7 @@ class GHPR:
         click.echo(f"Updating {self.base} and rebasing {self.staging_branch}...")
         self.githelper.checkout(self.base)
         self.githelper.pull(rebase=True)
-        self.githelper.rebase(self.base, interactive=True)
+        self.githelper.rebase(self.base, interactive=False)
 
     def _checkstyle(self: "Self", base: str, tip: str) -> None:
         """Run style checker if it exists.
@@ -407,7 +409,7 @@ class GHPR:
         LOGGER.info("Checking out PR #%d into %s", pr_number, pr_branch)
 
         # Delete old PR branch if it exists
-        self.githelper.delete_branch(pr_branch)
+        self.githelper.delete_branch(pr_branch, check=False)
 
         # Checkout the PR
         try:
@@ -441,7 +443,7 @@ class GHPR:
             self.githelper.rebase(
                 base,
                 onto=self.staging_branch,
-                interactive=True,
+                interactive=False,
                 exec_cmd=exec_cmd,
             )
         except git.exc.GitCommandError:
@@ -555,7 +557,7 @@ class GHPR:
 
                 # Push to FreeBSD main
                 click.echo("Pushing to FreeBSD main...")
-                if self.ghhelper.push(
+                if self.githelper.push(
                     self.staging_remote,
                     "HEAD:main",
                     push_option="confirm-author",
