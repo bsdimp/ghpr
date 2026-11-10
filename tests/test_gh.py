@@ -1,12 +1,14 @@
 """'ghpr.gh' module tests.
 
 TODO: improve these tests by further mocking out the inputs/outputs of `GHHelper`.
+
+Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+
+SPDX-License-Identifier: BSD-2-Clause
 """
 
 import json
 import subprocess
-from collections.abc import Generator
-from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -127,7 +129,7 @@ class TestGHHelperPRCommands:
     def test_assert_logged_in_passes(setup_staging: ...) -> None:
         """Test positive behavior for `GHHelper.assert_logged_in(..)`."""
 
-        def always_pass(*args, **kwargs):
+        def always_pass(*args, **kwargs) -> None:
             """Always pass :)."""
 
         staging_repo = setup_staging

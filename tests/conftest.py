@@ -1,4 +1,9 @@
-"""Common decorator logic, etc."""
+"""Common decorator logic, etc.
+
+Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+
+SPDX-License-Identifier: BSD-2-Clause
+"""
 
 import pathlib
 import shutil
@@ -11,7 +16,7 @@ from git import Repo
 
 from ghpr import __main__
 
-from . import format_result, setup_freebsd_remote
+from . import format_result, sandbox, setup_freebsd_remote
 
 
 @pytest.fixture
@@ -29,7 +34,7 @@ def bare_repo(tmp_path: ...) -> Generator[pathlib.Path]:
 
 
 @pytest.fixture(scope="session")
-def allowed_staging_url() -> Generator[str]:
+def allowed_staging_url() -> str:
     """Shorthand for the last element in `ALLOWED_STAGING_PUSH_REMOTES`.
 
     The last element is guaranteed to work for both fetch and push.
@@ -41,17 +46,17 @@ def allowed_staging_url() -> Generator[str]:
 def default_freebsd_remote(
     bare_repo: ...,
     allowed_staging_url: str,
-) -> Generator[Repo]:
+) -> Repo:
     """Set up a default `freebsd` remote for testing."""
     setup_freebsd_remote(bare_repo, allowed_staging_url)
-    yield bare_repo
+    return bare_repo
 
 
 @pytest.fixture
-def setup_staging(default_freebsd_remote: ...) -> Generator[Repo]:
+def setup_staging(default_freebsd_remote: ...) -> Repo:
     """Procedure which sets up a staging branch for testing."""
     runner = CliRunner()
-    with runner.isolated_filesystem(default_freebsd_remote):
+    with sandbox(default_freebsd_remote):
         result = runner.invoke(__main__.cli, ["init"])
         assert result.exit_code == 0, format_result(result)
-    yield default_freebsd_remote
+    return default_freebsd_remote

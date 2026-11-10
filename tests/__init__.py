@@ -1,4 +1,9 @@
-"""Common test logic."""
+"""Common test logic.
+
+Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+
+SPDX-License-Identifier: BSD-2-Clause
+"""
 
 import os
 from contextlib import contextmanager
@@ -26,7 +31,7 @@ def sandbox(new_path: Path) -> None:
 
 
 def setup_freebsd_remote(
-    repo_dir: Path, fetch_remote: str, push_remote: str | None = None
+    repo_dir: Path, fetch_remote: str, push_remote: str | None = None,
 ) -> None:
     """Fixture that sets up a bogus repo with the https://."""
     repo = git.Repo(repo_dir)
