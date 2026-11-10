@@ -1,6 +1,10 @@
 """'ghpr.git' module tests.
 
 TODO: improve these tests by further mocking out the inputs/outputs of `GitHelper`.
+
+Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+
+SPDX-License-Identifier: BSD-2-Clause
 """
 
 from collections.abc import Generator

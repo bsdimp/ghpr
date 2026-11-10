@@ -1,6 +1,10 @@
 """'ghpr.cli' module tests.
 
 TODO: further mock out interfaces/test CLI paths more thoroughly.
+
+Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+
+SPDX-License-Identifier: BSD-2-Clause
 """
 
 from unittest import mock
